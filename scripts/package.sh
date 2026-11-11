@@ -16,7 +16,7 @@ mkdir -p "$STAGE/var/jb/"{usr/libexec,Applications,Library/LaunchDaemons,Library
 cp -R "$PRODUCTS/iOSHotspot.app" "$STAGE/var/jb/Applications/"
 cp -R "$PRODUCTS/iOSHotspotCC.bundle" "$STAGE/var/jb/Library/ControlCenter/Bundles/"
 cp -R "$PRODUCTS/iOSHotspotPrefs.bundle" "$STAGE/var/jb/Library/PreferenceBundles/"
-for helper in ioshotspotd ioshotspot-vpn16 ioshotspot-vpn-connect ioshotspot-paths ioshotspot-ui-refresh; do
+for helper in ioshotspotd ioshotspot-vpn16 ioshotspot-vpn-connect ioshotspot-paths; do
  cp "$PRODUCTS/$helper" "$STAGE/var/jb/usr/libexec/$helper"
 done
 for library in iOSHotspotSource iOSHotspotNamed16Misd iOSHotspotNamed16Provider; do
@@ -46,7 +46,6 @@ for helper in ioshotspotd ioshotspot-vpn16 ioshotspot-paths; do
  "$SIGNER" -Spackaging/daemon-entitlements.plist "$STAGE/var/jb/usr/libexec/$helper"
 done
 "$SIGNER" -Spackaging/vpn-connect-entitlements.plist "$STAGE/var/jb/usr/libexec/ioshotspot-vpn-connect"
-"$SIGNER" -S "$STAGE/var/jb/usr/libexec/ioshotspot-ui-refresh"
 mkdir -p "$STAGE/DEBIAN"
 cp packaging/{control,preinst,postinst,prerm} "$STAGE/DEBIAN/"
 chmod 755 "$STAGE/DEBIAN/"{preinst,postinst,prerm}

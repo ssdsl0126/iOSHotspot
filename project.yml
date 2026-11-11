@@ -25,13 +25,13 @@
       "GCC_WARN_UNUSED_FUNCTION": "NO",
       "GCC_WARN_UNUSED_PARAMETER": "NO",
       "ENABLE_USER_SCRIPT_SANDBOXING": "NO",
-      "MARKETING_VERSION": "0.2.45",
-      "CURRENT_PROJECT_VERSION": "45",
+      "MARKETING_VERSION": "0.2.46",
+      "CURRENT_PROJECT_VERSION": "46",
       "GCC_PREPROCESSOR_DEFINITIONS": [
         "$(inherited)",
         "PRIVATE=1",
         "IPHONEOS_ARM64=1",
-        "IH_BUILD_VERSION=\\\"0.2.45\\\""
+        "IH_BUILD_VERSION=\\\"0.2.46\\\""
       ],
       "HEADER_SEARCH_PATHS": [
         "$(inherited)",
@@ -189,19 +189,6 @@
         },
         {
           "sdk": "Foundation.framework"
-        }
-      ]
-    },
-    "ioshotspot-ui-refresh": {
-      "type": "tool",
-      "platform": "iOS",
-      "sources": [
-        "src/integrations/refresh.c"
-      ],
-      "dependencies": [
-        {
-          "target": "libroot_dyn",
-          "link": true
         }
       ]
     },
@@ -392,7 +379,6 @@
         "ioshotspot-vpn16",
         "ioshotspot-vpn-connect",
         "ioshotspot-paths",
-        "ioshotspot-ui-refresh",
         "iOSHotspotCC",
         "iOSHotspotPrefs",
         "iOSHotspotSource",

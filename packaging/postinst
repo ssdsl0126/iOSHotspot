@@ -88,9 +88,3 @@ launchctl bootstrap system "$plist"
 stage='核对后台通信'
 "$helper" verify-service
 killall -TERM iOSHotspot Preferences 2>/dev/null || true
-# 仍使用正常注销刷新控制中心，不发送旧的 ReloadProviders 通知。
-if dpkg-query -W -f='${Status}' com.opa334.ccsupport 2>/dev/null | grep -q 'install ok installed'; then
- stage='刷新控制中心宿主'
- reload=$(bootstrap_path /usr/bin/sbreload)
- "$reload"
-fi

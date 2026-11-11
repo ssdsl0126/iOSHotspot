@@ -19,7 +19,6 @@
 				919C857B9E3D6503371C2C3F /* PBXTargetDependency */,
 				86D40B464AF5F4D3A9211F7F /* PBXTargetDependency */,
 				F07B4051D9BD1DEC361088B3 /* PBXTargetDependency */,
-				9A8D8B0959CFD796EC74444E /* PBXTargetDependency */,
 				3C41D508F131F5E2476044DD /* PBXTargetDependency */,
 				68FFC7502C82744ADAAF90E5 /* PBXTargetDependency */,
 				97AB219F57E1C749890814BA /* PBXTargetDependency */,
@@ -44,7 +43,6 @@
 		2194EC03EAA67BA3C0EFB03E /* IHRootController.m in Sources */ = {isa = PBXBuildFile; fileRef = 233BED0B1F537B11D1069238 /* IHRootController.m */; };
 		235A2D008068967A1DD39878 /* SourceHook.m in Sources */ = {isa = PBXBuildFile; fileRef = 0EAF4D597C24A2E849E582E2 /* SourceHook.m */; };
 		31B746C9D51C2E6BDC98B7A3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 985355874921CEC71A511A96 /* Foundation.framework */; };
-		33BE6787B54ED3D9C82E876C /* libroot_dyn.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EA3D63F4BDB07AE4A3BCAF98 /* libroot_dyn.a */; };
 		3630E667225696F96CD47F2E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F8983CB1E319FF2EA88A3CC /* CoreGraphics.framework */; };
 		372AA17853EFC16BA69F6E8F /* WiFiPrefix.m in Sources */ = {isa = PBXBuildFile; fileRef = 837C9FA1D868029991EE8E9D /* WiFiPrefix.m */; };
 		3A8A6A5DDE32200B1B5077B0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 985355874921CEC71A511A96 /* Foundation.framework */; };
@@ -53,7 +51,6 @@
 		52CA65E4169DEA627CD662A1 /* Preferences.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1B44ADD74D12E33D4A2FB0F3 /* Preferences.framework */; };
 		57A9746498556329F6430503 /* libroot_dyn.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EA3D63F4BDB07AE4A3BCAF98 /* libroot_dyn.a */; };
 		5BC22BD113D8164DA1D317EB /* native-vpn16.m in Sources */ = {isa = PBXBuildFile; fileRef = 76684DA3705B49280CF1D6E0 /* native-vpn16.m */; };
-		5D78E03724AD44457F623010 /* refresh.c in Sources */ = {isa = PBXBuildFile; fileRef = 97546B041C42BACDD6306FB0 /* refresh.c */; };
 		6045FE69271718588BAE0872 /* IHProtocol.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CE56EEA64FAF60EA67A2B99 /* IHProtocol.m */; };
 		643319FB65F7F1FEAC624051 /* ControlCenterUIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3AF6AEFAF3BA396639CA79EB /* ControlCenterUIKit.framework */; };
 		649B12F97C451876879C6496 /* libroot_dyn.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EA3D63F4BDB07AE4A3BCAF98 /* libroot_dyn.a */; };
@@ -116,13 +113,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 94A8CC6923EAA8D464B564FB;
 			remoteInfo = "ioshotspot-vpn-connect";
-		};
-		1B600EDA01B3B9B411A6E5EA /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = C3A513947651427E2EB59E88 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D0892E5C91AA6F5CE3689374;
-			remoteInfo = libroot_dyn;
 		};
 		2A94693DF46087B73888053C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -215,13 +205,6 @@
 			remoteGlobalIDString = EE6E4653644DA5CC609AD4E0;
 			remoteInfo = iOSHotspotCC;
 		};
-		A132544248985E44016E36FB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = C3A513947651427E2EB59E88 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = FE9989A66CCCAB0909C7BC37;
-			remoteInfo = "ioshotspot-ui-refresh";
-		};
 		D66A821D1ED09618F3FC3632 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C3A513947651427E2EB59E88 /* Project object */;
@@ -260,7 +243,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		01DEBBFDBE356E3597F2DE25 /* ioshotspot-ui-refresh */ = {isa = PBXFileReference; includeInIndex = 0; path = "ioshotspot-ui-refresh"; sourceTree = BUILT_PRODUCTS_DIR; };
 		07B366644BE51BBDFE68FF38 /* IHControlModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IHControlModule.m; sourceTree = "<group>"; };
 		08183C49791957E5473ADA2B /* IHNativeVPN.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IHNativeVPN.m; sourceTree = "<group>"; };
 		0924F1EC949211C7B6CA6AAF /* qrcodegen.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = qrcodegen.c; sourceTree = "<group>"; };
@@ -291,7 +273,6 @@
 		858BD2DED03681B574E04D6E /* IHVPNConnector.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IHVPNConnector.m; sourceTree = "<group>"; };
 		8B9457CC24F0CAF2FA8FB827 /* ioshotspot-vpn-connect */ = {isa = PBXFileReference; includeInIndex = 0; path = "ioshotspot-vpn-connect"; sourceTree = BUILT_PRODUCTS_DIR; };
 		971A021B85270239693A59F2 /* iOSHotspotPrefs.bundle */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = iOSHotspotPrefs.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
-		97546B041C42BACDD6306FB0 /* refresh.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = refresh.c; sourceTree = "<group>"; };
 		985355874921CEC71A511A96 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		99803ACFACBD362EB5B136C7 /* paths.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = paths.m; sourceTree = "<group>"; };
 		9D0A2DB43E3BBC398B13F97C /* IHNetwork.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = IHNetwork.m; sourceTree = "<group>"; };
@@ -400,14 +381,6 @@
 				3A8A6A5DDE32200B1B5077B0 /* Foundation.framework in Frameworks */,
 				CEF2008772DF495BEB73C764 /* SystemConfiguration.framework in Frameworks */,
 				FE5E3E593EA4E7CB24424948 /* NetworkExtension.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		DE959CFB3D82EAED8F139054 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				33BE6787B54ED3D9C82E876C /* libroot_dyn.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -566,7 +539,6 @@
 			isa = PBXGroup;
 			children = (
 				99803ACFACBD362EB5B136C7 /* paths.m */,
-				97546B041C42BACDD6306FB0 /* refresh.c */,
 				503127A57C31CC991574BB36 /* vpn-connect.m */,
 			);
 			path = integrations;
@@ -596,7 +568,6 @@
 			isa = PBXGroup;
 			children = (
 				0CF2CD84C90FD43568CCE501 /* ioshotspot-paths */,
-				01DEBBFDBE356E3597F2DE25 /* ioshotspot-ui-refresh */,
 				8B9457CC24F0CAF2FA8FB827 /* ioshotspot-vpn-connect */,
 				50DACD183D7B3474B79F581D /* ioshotspot-vpn16 */,
 				56046AAF79AD42025F0118B0 /* iOSHotspotApp.app */,
@@ -822,25 +793,6 @@
 			productReference = 50ABAD8177953F334712C95D /* iOSHotspotCC.bundle */;
 			productType = "com.apple.product-type.bundle";
 		};
-		FE9989A66CCCAB0909C7BC37 /* ioshotspot-ui-refresh */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 38F011C6E037C365553C79E8 /* Build configuration list for PBXNativeTarget "ioshotspot-ui-refresh" */;
-			buildPhases = (
-				A2A5263735B169D1768135EE /* Sources */,
-				DE959CFB3D82EAED8F139054 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				5EBEBB59675ED1F2DAC3FA26 /* PBXTargetDependency */,
-			);
-			name = "ioshotspot-ui-refresh";
-			packageProductDependencies = (
-			);
-			productName = "ioshotspot-ui-refresh";
-			productReference = 01DEBBFDBE356E3597F2DE25 /* ioshotspot-ui-refresh */;
-			productType = "com.apple.product-type.tool";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -872,7 +824,6 @@
 				E7F8B9A91E7E19AE8310B349 /* ioshotspot-vpn16 */,
 				94A8CC6923EAA8D464B564FB /* ioshotspot-vpn-connect */,
 				CA9624CDE48A378E85E6295C /* ioshotspot-paths */,
-				FE9989A66CCCAB0909C7BC37 /* ioshotspot-ui-refresh */,
 				EE6E4653644DA5CC609AD4E0 /* iOSHotspotCC */,
 				E137537BA73DC9FCA95B7905 /* iOSHotspotPrefs */,
 				A90C2F8897A46606C43FEB7B /* iOSHotspotSource */,
@@ -986,14 +937,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A2A5263735B169D1768135EE /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				5D78E03724AD44457F623010 /* refresh.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A685F05EC618F622734F18C1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1065,11 +1008,6 @@
 			target = 3EAE5E902B7768B2831D54FF /* iOSHotspotNamed16Provider */;
 			targetProxy = 04A4C6C4C38AABD5233A59E4 /* PBXContainerItemProxy */;
 		};
-		5EBEBB59675ED1F2DAC3FA26 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D0892E5C91AA6F5CE3689374 /* libroot_dyn */;
-			targetProxy = 1B600EDA01B3B9B411A6E5EA /* PBXContainerItemProxy */;
-		};
 		68FFC7502C82744ADAAF90E5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E137537BA73DC9FCA95B7905 /* iOSHotspotPrefs */;
@@ -1099,11 +1037,6 @@
 			isa = PBXTargetDependency;
 			target = A90C2F8897A46606C43FEB7B /* iOSHotspotSource */;
 			targetProxy = F6C9F44274AF8131FBBE3C8A /* PBXContainerItemProxy */;
-		};
-		9A8D8B0959CFD796EC74444E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = FE9989A66CCCAB0909C7BC37 /* ioshotspot-ui-refresh */;
-			targetProxy = A132544248985E44016E36FB /* PBXContainerItemProxy */;
 		};
 		9D4BA7EA467BD97E65BED262 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1432,7 +1365,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1448,7 +1381,7 @@
 					"$(inherited)",
 					"PRIVATE=1",
 					"IPHONEOS_ARM64=1",
-					"IH_BUILD_VERSION=\\\"0.2.45\\\"",
+					"IH_BUILD_VERSION=\\\"0.2.46\\\"",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1469,7 +1402,7 @@
 					"@loader_path/../../../usr/lib",
 					"@loader_path/../../../../usr/lib",
 				);
-				MARKETING_VERSION = 0.2.45;
+				MARKETING_VERSION = 0.2.46;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
@@ -1513,22 +1446,6 @@
 			name = Debug;
 		};
 		7AF530EC7C4C526760DF9895 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		9B0A9F2A7EA2E50F7C9122FE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1768,7 +1685,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1785,7 +1702,7 @@
 					"$(inherited)",
 					"PRIVATE=1",
 					"IPHONEOS_ARM64=1",
-					"IH_BUILD_VERSION=\\\"0.2.45\\\"",
+					"IH_BUILD_VERSION=\\\"0.2.46\\\"",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -1806,7 +1723,7 @@
 					"@loader_path/../../../usr/lib",
 					"@loader_path/../../../../usr/lib",
 				);
-				MARKETING_VERSION = 0.2.45;
+				MARKETING_VERSION = 0.2.46;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
@@ -1820,22 +1737,6 @@
 			name = Debug;
 		};
 		F88CBFB2C841649437CAD4FD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-ObjC",
-				);
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		F97748513BD1E9823F9BFAF2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1868,15 +1769,6 @@
 			buildConfigurations = (
 				03B46D358AE9CB707126EDF2 /* Debug */,
 				52293EBABE474069A1CA6610 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		38F011C6E037C365553C79E8 /* Build configuration list for PBXNativeTarget "ioshotspot-ui-refresh" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F97748513BD1E9823F9BFAF2 /* Debug */,
-				9B0A9F2A7EA2E50F7C9122FE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

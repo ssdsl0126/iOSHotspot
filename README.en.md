@@ -19,7 +19,7 @@ Available functions depend on the device's runtime interfaces and the status sho
 
 1. Download the `.deb` package from [Releases](https://github.com/ssdsl0126/iOSHotspot/releases/latest).
 2. Open and install it with a package manager such as Sileo or Zebra, and resolve dependencies when prompted. The package depends on `network-cmds` and `uikittools`.
-3. Follow any respring prompt (`sbreload`), then open **iOSHotspot** from the Home Screen.
+3. After installation, open **iOSHotspot** from the Home Screen.
 
 An iOSHotspot preference pane is also available in the Settings app. Its location may vary with your jailbreak and any tweak that groups preference panes.
 
@@ -77,7 +77,7 @@ You can also touch and hold the Home Screen app icon to start, stop or toggle th
 - **Backend unavailable or installation failed**: confirm that the jailbreak is active and dependencies are installed. Save the installation log, then reconfigure or reinstall the package with your package manager. Include the exact error if the problem persists.
 - **Hotspot is on but clients cannot access the internet**: check the actual upstream and interface shown in the app. Confirm that the phone itself can use that connection, then reconnect the client.
 - **A client has no IPv6 address**: confirm that the upstream has working IPv6, then allow time for prefix and router advertisements. For a VPN source, also enable VPN IPv6 Sharing. That option cannot create public IPv6 connectivity on an upstream that does not support it.
-- **Control Center button is missing**: check that CCSupport supports your iOS version and is loaded, then follow the installation respring instructions before adding the button.
+- **Control Center button is missing**: check that CCSupport supports your iOS version and is loaded, then look for iOSHotspot while editing Control Center.
 
 To report a problem, select **复制诊断报告** (Copy Diagnostic Report) in the app's About page or Settings preference pane, then open an [issue](https://github.com/ssdsl0126/iOSHotspot/issues). Include your iOS version, jailbreak environment, sharing source and reproduction steps. Review the network information in the report before sharing it.
 
