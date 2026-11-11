@@ -2,6 +2,8 @@
 /*
 !/.gitignore
 !/.gitmodules
+!/README.md
+!/README.en.md
 !/Makefile
 !/src/
 !/packaging/
