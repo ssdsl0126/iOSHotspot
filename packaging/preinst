@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+# 仅在安装或升级前回滚旧网络；其他 dpkg 恢复回调不重复停服务。
+case ${1:-install} in install|upgrade) ;; *) exit 0 ;; esac
+package=com.newbie.ioshotspot
+# dpkg 返回当前命令环境可直接使用的路径，RootHide 下不再拼接原生根目录。
+daemon=$(dpkg-query -L "$package" 2>/dev/null | sed -n '\|/usr/libexec/ioshotspotd$|p' || true)
+for domain in system user/foreground user/501 gui/501; do
+ if launchctl print "$domain/$package" >/dev/null 2>&1; then
+  if [ -z "$daemon" ] || [ ! -x "$daemon" ]; then
+   printf '%s\n' 'iOSHotspot：旧服务仍在运行但程序不可执行，未强制中断网络恢复。' >&2
+   exit 1
+  fi
+  "$daemon" disable >/dev/null
+  launchctl bootout "$domain/$package"
+ fi
+done

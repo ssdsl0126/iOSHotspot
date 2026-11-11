@@ -1,0 +1,9 @@
+Package: com.newbie.ioshotspot
+Name: iOSHotspot
+Version: 0.2.45
+Architecture: iphoneos-arm64
+Description: Native hotspot controls, local statistics and automatic rules.
+Maintainer: newbie
+Author: newbie
+Section: Networking
+Depends: firmware (>= 15.0), network-cmds, uikittools

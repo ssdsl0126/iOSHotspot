@@ -1,0 +1,430 @@
+{
+  "name": "iOSHotspot",
+  "options": {
+    "deploymentTarget": {
+      "iOS": "15.0"
+    },
+    "createIntermediateGroups": true,
+    "defaultConfig": "Release"
+  },
+  "settings": {
+    "base": {
+      "SDKROOT": "iphoneos",
+      "SUPPORTED_PLATFORMS": "iphoneos",
+      "IPHONEOS_DEPLOYMENT_TARGET": "15.0",
+      "ARCHS": [
+        "arm64"
+      ],
+      "ONLY_ACTIVE_ARCH": "NO",
+      "CODE_SIGNING_ALLOWED": "NO",
+      "CODE_SIGNING_REQUIRED": "NO",
+      "CLANG_ENABLE_OBJC_ARC": "YES",
+      "CLANG_ENABLE_MODULES": "YES",
+      "GCC_C_LANGUAGE_STANDARD": "gnu11",
+      "GCC_OPTIMIZATION_LEVEL": "2",
+      "GCC_WARN_UNUSED_FUNCTION": "NO",
+      "GCC_WARN_UNUSED_PARAMETER": "NO",
+      "ENABLE_USER_SCRIPT_SANDBOXING": "NO",
+      "MARKETING_VERSION": "0.2.45",
+      "CURRENT_PROJECT_VERSION": "45",
+      "GCC_PREPROCESSOR_DEFINITIONS": [
+        "$(inherited)",
+        "PRIVATE=1",
+        "IPHONEOS_ARM64=1",
+        "IH_BUILD_VERSION=\\\"0.2.45\\\""
+      ],
+      "HEADER_SEARCH_PATHS": [
+        "$(inherited)",
+        "$(SRCROOT)/third_party/libroot/src"
+      ],
+      "FRAMEWORK_SEARCH_PATHS": [
+        "$(inherited)",
+        "$(SRCROOT)/interfaces"
+      ],
+      "LD_RUNPATH_SEARCH_PATHS": [
+        "$(inherited)",
+        "@loader_path/../lib",
+        "@loader_path/../../usr/lib",
+        "@loader_path/../../../usr/lib",
+        "@loader_path/../../../../usr/lib"
+      ]
+    }
+  },
+  "targets": {
+    "libroot_dyn": {
+      "type": "library.static",
+      "platform": "iOS",
+      "sources": [
+        "third_party/libroot/src/dyn.c"
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ]
+        }
+      },
+      "productName": "root_dyn"
+    },
+    "iOSHotspotApp": {
+      "type": "application",
+      "platform": "iOS",
+      "sources": [
+        "src/app/main.m",
+        "src/app/IHQRCode.m",
+        "third_party/qrcodegen/c/qrcodegen.c",
+        "src/common/IHProtocol.m",
+        {
+          "path": "packaging/icons",
+          "includes": [
+            "AppIcon*.png"
+          ],
+          "buildPhase": "resources"
+        },
+        "src/common/IHHotspotCompatibility.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "UIKit.framework"
+        },
+        {
+          "sdk": "CoreGraphics.framework"
+        },
+        {
+          "sdk": "QuartzCore.framework"
+        }
+      ],
+      "settings": {
+        "base": {
+          "PRODUCT_NAME": "iOSHotspot",
+          "PRODUCT_BUNDLE_IDENTIFIER": "com.newbie.ioshotspot",
+          "INFOPLIST_FILE": "packaging/app-Info.plist",
+          "TARGETED_DEVICE_FAMILY": "1,2"
+        }
+      }
+    },
+    "ioshotspotd": {
+      "type": "tool",
+      "platform": "iOS",
+      "sources": [
+        "src/daemon/main.m",
+        "src/daemon/IHNetwork.m",
+        "src/daemon/IHStore.m",
+        "src/daemon/IHClients.m",
+        "src/daemon/IHNativeVPN.m",
+        "src/daemon/IHVPNConnector.m",
+        "src/common/IHProtocol.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "SystemConfiguration.framework"
+        }
+      ]
+    },
+    "ioshotspot-vpn16": {
+      "type": "tool",
+      "platform": "iOS",
+      "sources": [
+        "src/daemon/native-vpn16.m",
+        "src/daemon/IHNetwork.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "SystemConfiguration.framework"
+        }
+      ]
+    },
+    "ioshotspot-vpn-connect": {
+      "type": "tool",
+      "platform": "iOS",
+      "sources": [
+        "src/integrations/vpn-connect.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "SystemConfiguration.framework"
+        }
+      ]
+    },
+    "ioshotspot-paths": {
+      "type": "tool",
+      "platform": "iOS",
+      "sources": [
+        "src/integrations/paths.m",
+        "src/common/IHProtocol.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        }
+      ]
+    },
+    "ioshotspot-ui-refresh": {
+      "type": "tool",
+      "platform": "iOS",
+      "sources": [
+        "src/integrations/refresh.c"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        }
+      ]
+    },
+    "iOSHotspotCC": {
+      "type": "bundle",
+      "platform": "iOS",
+      "sources": [
+        "src/cc/IHControlModule.m",
+        "src/cc/IHControlAction.m",
+        "src/common/IHProtocol.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "UIKit.framework"
+        },
+        {
+          "framework": "interfaces/ControlCenterUIKit.framework",
+          "embed": false
+        }
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ],
+          "PRODUCT_NAME": "iOSHotspotCC",
+          "PRODUCT_BUNDLE_IDENTIFIER": "com.newbie.ioshotspot.cc",
+          "INFOPLIST_FILE": "packaging/cc-Info.plist",
+          "WRAPPER_EXTENSION": "bundle",
+          "MACH_O_TYPE": "mh_dylib",
+          "DYLIB_INSTALL_NAME_BASE": "@rpath",
+          "EXECUTABLE_PREFIX": "",
+          "SKIP_INSTALL": "YES",
+          "LD_DYLIB_INSTALL_NAME": "@rpath/$(EXECUTABLE_NAME)"
+        }
+      }
+    },
+    "iOSHotspotPrefs": {
+      "type": "bundle",
+      "platform": "iOS",
+      "sources": [
+        "src/prefs/IHRootController.m",
+        "src/common/IHProtocol.m",
+        "src/common/IHHotspotCompatibility.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "UIKit.framework"
+        },
+        {
+          "framework": "interfaces/Preferences.framework",
+          "embed": false
+        }
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ],
+          "PRODUCT_NAME": "iOSHotspotPrefs",
+          "PRODUCT_BUNDLE_IDENTIFIER": "com.newbie.ioshotspot.preferences",
+          "INFOPLIST_FILE": "packaging/prefs-Info.plist",
+          "WRAPPER_EXTENSION": "bundle",
+          "MACH_O_TYPE": "mh_dylib",
+          "DYLIB_INSTALL_NAME_BASE": "@rpath",
+          "EXECUTABLE_PREFIX": "",
+          "SKIP_INSTALL": "YES",
+          "LD_DYLIB_INSTALL_NAME": "@rpath/$(EXECUTABLE_NAME)"
+        }
+      }
+    },
+    "iOSHotspotSource": {
+      "type": "library.dynamic",
+      "platform": "iOS",
+      "sources": [
+        "src/tweak/SourceHook.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        }
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ],
+          "PRODUCT_NAME": "iOSHotspotSource",
+          "EXECUTABLE_PREFIX": "",
+          "DYLIB_INSTALL_NAME_BASE": "@rpath",
+          "SKIP_INSTALL": "YES"
+        }
+      }
+    },
+    "iOSHotspotNamed16Misd": {
+      "type": "library.dynamic",
+      "platform": "iOS",
+      "sources": [
+        "src/tweak/Named16Misd.m",
+        "src/tweak/WiFiPrefix.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "SystemConfiguration.framework"
+        }
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ],
+          "PRODUCT_NAME": "iOSHotspotNamed16Misd",
+          "EXECUTABLE_PREFIX": "",
+          "DYLIB_INSTALL_NAME_BASE": "@rpath",
+          "SKIP_INSTALL": "YES"
+        }
+      }
+    },
+    "iOSHotspotNamed16Provider": {
+      "type": "library.dynamic",
+      "platform": "iOS",
+      "sources": [
+        "src/tweak/Named16Provider.m"
+      ],
+      "dependencies": [
+        {
+          "target": "libroot_dyn",
+          "link": true
+        },
+        {
+          "sdk": "Foundation.framework"
+        },
+        {
+          "sdk": "SystemConfiguration.framework"
+        },
+        {
+          "sdk": "NetworkExtension.framework"
+        }
+      ],
+      "settings": {
+        "base": {
+          "ARCHS": [
+            "arm64",
+            "arm64e"
+          ],
+          "PRODUCT_NAME": "iOSHotspotNamed16Provider",
+          "EXECUTABLE_PREFIX": "",
+          "DYLIB_INSTALL_NAME_BASE": "@rpath",
+          "SKIP_INSTALL": "YES"
+        }
+      }
+    }
+  },
+  "aggregateTargets": {
+    "iOSHotspotPackage": {
+      "targets": [
+        "iOSHotspotApp",
+        "ioshotspotd",
+        "ioshotspot-vpn16",
+        "ioshotspot-vpn-connect",
+        "ioshotspot-paths",
+        "ioshotspot-ui-refresh",
+        "iOSHotspotCC",
+        "iOSHotspotPrefs",
+        "iOSHotspotSource",
+        "iOSHotspotNamed16Misd",
+        "iOSHotspotNamed16Provider"
+      ],
+      "buildScripts": [
+        {
+          "name": "Sign and package jailbreak payload",
+          "script": "\"${SRCROOT}/scripts/package.sh\" \"${BUILT_PRODUCTS_DIR}\" \"${SRCROOT}/build/release\"",
+          "basedOnDependencyAnalysis": false
+        }
+      ]
+    }
+  },
+  "schemes": {
+    "iOSHotspot": {
+      "build": {
+        "targets": {
+          "iOSHotspotPackage": "all"
+        }
+      }
+    },
+    "iOSHotspotApp": {
+      "build": {
+        "targets": {
+          "iOSHotspotApp": "all"
+        }
+      },
+      "run": {
+        "config": "Debug"
+      }
+    }
+  }
+}

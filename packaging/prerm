@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+case ${1:-remove} in remove|deconfigure) ;; *) exit 0 ;; esac
+package=com.newbie.ioshotspot
+# dpkg 清单的路径可直接交给当前 bootstrap，避免 RootHide 的根前缀被重复转换。
+files=$(dpkg-query -L "$package")
+daemon=$(printf '%s\n' "$files" | sed -n '\|/usr/libexec/ioshotspotd$|p')
+for domain in system user/foreground user/501 gui/501; do
+ if launchctl print "$domain/$package" >/dev/null 2>&1; then
+  if [ -z "$daemon" ] || [ ! -x "$daemon" ]; then
+   printf '%s\n' 'iOSHotspot：后台仍在运行，无法执行网络回滚，未强制删除。' >&2
+   exit 1
+  fi
+  "$daemon" disable >/dev/null
+  launchctl bootout "$domain/$package"
+ fi
+done
+app=$(printf '%s\n' "$files" | sed -n 's|/Applications/iOSHotspot.app/Info.plist$|/Applications/iOSHotspot.app|p')
+if [ -n "$app" ]; then uicache -u "$app" || true; fi

@@ -1,0 +1,6 @@
+[submodule "third_party/libroot"]
+	path = third_party/libroot
+	url = https://github.com/opa334/libroot.git
+[submodule "third_party/qrcodegen"]
+	path = third_party/qrcodegen
+	url = https://github.com/nayuki/QR-Code-generator.git

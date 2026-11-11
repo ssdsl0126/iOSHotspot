@@ -1,0 +1,25 @@
+# 仅跟踪项目必需文件；其余目录和本地文件整体忽略。
+/*
+!/.gitignore
+!/.gitmodules
+!/Makefile
+!/src/
+!/packaging/
+!/scripts/
+!/third_party/
+
+/scripts/*
+!/scripts/build.sh
+!/scripts/package.sh
+/third_party/*
+!/third_party/libroot
+!/third_party/qrcodegen
+
+**/.DS_Store
+
+!/interfaces/
+!/project.yml
+!/iOSHotspot.xcodeproj/
+/iOSHotspot.xcodeproj/*
+!/iOSHotspot.xcodeproj/project.pbxproj
+!/iOSHotspot.xcodeproj/xcshareddata/

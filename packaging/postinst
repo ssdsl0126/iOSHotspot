@@ -1,0 +1,96 @@
+#!/bin/sh
+set -eu
+case ${1:-configure} in configure) ;; *) exit 0 ;; esac
+package=com.newbie.ioshotspot
+stage='定位安装助手'
+temporary=
+trap 'result=$?; if [ -n "$temporary" ]; then rm -f "$temporary"; fi; if [ "$result" -ne 0 ]; then printf "iOSHotspot：安装未完成（%s），请保留上方错误日志。\n" "$stage" >&2; fi' 0
+# RootHide 的 bootstrap 工具使用逻辑根；原生 libroot 助手输出的路径需转回。
+roothide=false
+if [ "$(dpkg --print-architecture)" = iphoneos-arm64e ]; then
+ command -v rootfs >/dev/null 2>&1
+ command -v jbroot >/dev/null 2>&1
+ roothide=true
+fi
+helper=$(dpkg-query -L "$package" | sed -n '\|/usr/libexec/ioshotspot-paths$|p')
+test -n "$helper" && test -x "$helper"
+native_path() {
+ value=$("$helper" resolve "$1") || return
+ case $value in /*) printf '%s\n' "$value" ;; *) printf '%s\n' 'iOSHotspot：路径助手未返回有效绝对路径。' >&2; return 1 ;; esac
+}
+bootstrap_path() {
+ value=$(native_path "$1") || return
+ if [ "$roothide" = true ]; then rootfs "$value"; else printf '%s\n' "$value"; fi
+}
+xml_text() {
+ printf '%s' "$1" | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&apos;/g"
+}
+stage='停止旧后台'
+for domain in system user/foreground user/501 gui/501; do
+ if launchctl print "$domain/$package" >/dev/null 2>&1; then
+  launchctl bootout "$domain/$package"
+ fi
+done
+stage='准备 libroot 目录'
+"$helper" prepare
+plist=$(bootstrap_path /Library/LaunchDaemons/com.newbie.ioshotspot.plist)
+if [ "$roothide" = true ]; then
+ stage='准备 RootHide launchd 路径'
+ program=$(native_path /usr/libexec/ioshotspotd)
+ log=$(native_path /var/log/com.newbie.ioshotspot/service.log)
+ # 助手已写入原生路径。RootHide launchctl 遇到 __Patched 会先转回逻辑根，
+ # 再转换一次；否则首次安装会把随机根前缀重复加到程序和日志路径。
+ # 这里只生成本项目固定 launchd 配置，不改核心程序或第三方 plist。
+ temporary=$(mktemp "$plist.XXXXXX")
+ cat > "$temporary" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.newbie.ioshotspot</string>
+ <key>ProgramArguments</key><array><string>$(xml_text "$program")</string></array>
+ <key>StandardOutPath</key><string>$(xml_text "$log")</string>
+ <key>StandardErrorPath</key><string>$(xml_text "$log")</string>
+ <key>KeepAlive</key><true/>
+ <key>RunAtLoad</key><true/>
+ <key>ProcessType</key><string>Background</string>
+ <key>ThrottleInterval</key><integer>10</integer>
+ <key>UserName</key><string>root</string>
+ <key>__Patched</key><true/>
+</dict></plist>
+PLIST
+ chmod 644 "$temporary"
+ mv -f "$temporary" "$plist"
+ temporary=
+fi
+stage='注册应用'
+app=$(bootstrap_path /Applications/iOSHotspot.app)
+uicache -p "$app"
+reload_service() {
+ label=$1
+ for domain in system user/foreground user/501 gui/501; do
+  if launchctl print "$domain/$label" >/dev/null 2>&1; then
+   launchctl kickstart -k "$domain/$label"
+   return
+  fi
+ done
+ printf 'iOSHotspot：无法找到待重载的服务：%s\n' "$label" >&2
+ return 1
+}
+stage='重载共享模块宿主'
+reload_service com.apple.MobileInternetSharing
+reload_service com.apple.wifid
+reload_service com.apple.UserEventAgent-System
+stage='核对三个模块宿主'
+"$helper" verify-hooks
+# 后台初始化会连接共享及Wi-Fi服务；宿主全部重载就绪后再启动，避免连接到正退出的旧进程。
+stage='启动项目后台'
+launchctl bootstrap system "$plist"
+stage='核对后台通信'
+"$helper" verify-service
+killall -TERM iOSHotspot Preferences 2>/dev/null || true
+# 仍使用正常注销刷新控制中心，不发送旧的 ReloadProviders 通知。
+if dpkg-query -W -f='${Status}' com.opa334.ccsupport 2>/dev/null | grep -q 'install ok installed'; then
+ stage='刷新控制中心宿主'
+ reload=$(bootstrap_path /usr/bin/sbreload)
+ "$reload"
+fi
