@@ -1,0 +1,6 @@
+// Official RootHide devkit; no Theos installation is needed.
+IH_PACKAGE_SCHEME = roothide
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) IH_ROOTHIDE=1
+HEADER_SEARCH_PATHS = $(inherited) "$(SRCROOT)/third_party/roothide-devkit"
+LIBRARY_SEARCH_PATHS = $(inherited) "$(SRCROOT)/third_party/roothide-devkit/roothide"
+OTHER_LDFLAGS = $(inherited) -lroothide

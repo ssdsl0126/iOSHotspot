@@ -324,7 +324,7 @@ typedef NS_ENUM(NSInteger, IHPage) {
         [headers addObject:header ?: @""]; [sections addObject:rows ?: @[]]; [footers addObject:footer ?: @""];
     };
     if (!store.connected) {
-        add(@"后台服务不可用", @[[self row:@"无法取得实时状态" value:store.errorText ?: @"正在连接…" action:@"refresh"]], @"请确认 rootless 软件包及后台服务已经安装。重新读取前不会显示缓存为实时数据。");
+        add(@"后台服务不可用", @[[self row:@"无法取得实时状态" value:store.errorText ?: @"正在连接…" action:@"refresh"]], @"请确认软件包及后台服务已经安装。重新读取前不会显示缓存为实时数据。");
     } else if (self.page == IHPageDashboard) {
         BOOL enabled = [status[@"enabled"] boolValue];
         BOOL on = [status[@"hotspotOn"] boolValue];

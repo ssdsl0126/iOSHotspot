@@ -9,6 +9,7 @@ Author: **newbie** · Package identifier: `com.newbie.ioshotspot`
 ## Requirements
 
 - The minimum deployment target is **iOS 15.0**. The current release provides a rootless `iphoneos-arm64` package; use an installation tool appropriate for your jailbreak environment.
+- This source adaptation adds a RootHide `iphoneos-arm64e` build. It requires a full jailbreak that supports module injection into `wifid`, `UserEventAgent` and `misd`. Standalone Bootstrap and environments that only support app injection are outside the supported scope.
 - Use a device with a SIM card inserted and working cellular data. SIM-free use is outside the current supported scope.
 - Connect the phone to the desired Wi-Fi network or VPN before selecting that upstream.
 - The Control Center button requires **CCSupport** compatible with your iOS version. This optional button is not required to use the app.
@@ -18,7 +19,7 @@ Available functions depend on the device's runtime interfaces and the status sho
 ## Installation
 
 1. Download the `.deb` package from [Releases](https://github.com/ssdsl0126/iOSHotspot/releases/latest).
-2. Open and install it with a package manager such as Sileo or Zebra, and resolve dependencies when prompted. The package depends on `network-cmds` and `uikittools`.
+2. Open and install it with a package manager such as Sileo or Zebra, and resolve dependencies when prompted. The package depends on `network-cmds` and `uikittools`; the RootHide build also depends on `roothide`. Build the adapted RootHide package from source using the instructions below.
 3. After installation, open **iOSHotspot** from the Home Screen.
 
 An iOSHotspot preference pane is also available in the Settings app. Its location may vary with your jailbreak and any tweak that groups preference panes.
@@ -91,4 +92,15 @@ cd iOSHotspot
 make build
 ```
 
-Alternatively, open `iOSHotspot.xcodeproj`, select the **iOSHotspot** scheme and an iOS device destination, and build. The `.deb` is written to `build/release/`. Dependencies reference their original repositories as submodules: [libroot](https://github.com/opa334/libroot) and [QR Code generator](https://github.com/nayuki/QR-Code-generator).
+`make build` retains the original rootless build. To build the RootHide version:
+
+```sh
+make roothide
+# Equivalent: make build IH_PACKAGE_SCHEME=roothide
+```
+
+The RootHide package is written to `build/release/com.newbie.ioshotspot_0.2.46+roothide1_iphoneos-arm64e.deb`. This entry point uses `packaging/roothide.xcconfig` and the official [RootHide devkit API files](third_party/roothide-devkit/README.md) included with the source. Theos and RootHide Patcher are not required. The optional Control Center entry still requires CCSupport compatible with your iOS version.
+
+Alternatively, open `iOSHotspot.xcodeproj`, select the **iOSHotspot** scheme and an iOS device destination, and build; the default Xcode build remains rootless. All `.deb` files are written to `build/release/`. Dependencies reference their original repositories as submodules: [libroot](https://github.com/opa334/libroot) and [QR Code generator](https://github.com/nayuki/QR-Code-generator).
+
+Validation of this RootHide adaptation is currently limited to local compilation and package inspection. Installation, actual injection into all three hosts, and cellular, Wi-Fi and VPN sharing behavior still require device testing.

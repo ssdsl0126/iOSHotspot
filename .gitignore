@@ -16,6 +16,7 @@
 /third_party/*
 !/third_party/libroot
 !/third_party/qrcodegen
+!/third_party/roothide-devkit/
 
 **/.DS_Store
 
