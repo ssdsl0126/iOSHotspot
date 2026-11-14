@@ -1,13 +1,21 @@
 #pragma once
 #import <Foundation/Foundation.h>
+#if IH_ROOTHIDE
+#include <roothide.h>
+#else
 #include <libroot.h>
+#endif
 #ifndef IH_BUILD_VERSION
 #define IH_BUILD_VERSION "development"
 #endif
 
 // 项目路径均从逻辑路径转换；系统框架、系统配置及设备节点仍使用原生路径。
 static inline NSString *IHJailbreakPath(NSString *path) {
+#if IH_ROOTHIDE
+    return jbroot(path);
+#else
     return JBROOT_PATH_NSSTRING(path);
+#endif
 }
 #define IHDataDirectory IHJailbreakPath(@"/var/lib/com.newbie.ioshotspot")
 #define IHRuntimeDirectory IHJailbreakPath(@"/var/run/com.newbie.ioshotspot")

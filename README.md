@@ -9,6 +9,7 @@
 ## 使用前准备
 
 - 最低部署版本为 **iOS 15.0**；当前 Release 提供 rootless `iphoneos-arm64` 软件包，请使用与越狱环境匹配的安装工具。
+- 本源码适配增加 RootHide `iphoneos-arm64e` 构建。需要能够向 `wifid`、`UserEventAgent` 和 `misd` 注入模块的完整越狱；独立 Bootstrap 或仅支持 App 注入的环境不在支持范围内。
 - 请在已插入 SIM 卡、蜂窝数据可用的环境下使用。无卡场景不在当前适配范围内。
 - 选择 Wi-Fi 或 VPN 来源时，先确保手机已经连接对应网络。
 - 控制中心按钮需要安装兼容当前系统的 **CCSupport**；App 本身不依赖这个可选入口。
@@ -18,7 +19,7 @@
 ## 安装
 
 1. 打开 [Releases](https://github.com/ssdsl0126/iOSHotspot/releases/latest)，下载 `.deb` 安装包。
-2. 使用 Sileo、Zebra 等包管理器打开并安装，按提示处理依赖。软件包依赖 `network-cmds` 和 `uikittools`。
+2. 使用 Sileo、Zebra 等包管理器打开并安装，按提示处理依赖。软件包依赖 `network-cmds` 和 `uikittools`；RootHide 构建还依赖 `roothide`。RootHide 适配包可按下方说明从源码构建。
 3. 安装完成后，从主屏幕打开 **iOSHotspot**。
 
 系统设置中也有 iOSHotspot 的插件设置入口；具体分组位置可能随设置分组插件和越狱环境变化。
@@ -89,4 +90,15 @@ cd iOSHotspot
 make build
 ```
 
-也可打开 `iOSHotspot.xcodeproj`，选择 **iOSHotspot** scheme 和 iOS 真机目标进行构建。生成的 `.deb` 位于 `build/release/`。依赖通过子模块引用原仓库：[libroot](https://github.com/opa334/libroot)、[QR Code generator](https://github.com/nayuki/QR-Code-generator)。
+`make build` 保持原有 rootless 构建。构建 RootHide 版本：
+
+```sh
+make roothide
+# 等效入口：make build IH_PACKAGE_SCHEME=roothide
+```
+
+生成的 RootHide 包为 `build/release/com.newbie.ioshotspot_0.2.46+roothide1_iphoneos-arm64e.deb`。该入口使用 `packaging/roothide.xcconfig` 和随源码提供的官方 [RootHide devkit API 文件](third_party/roothide-devkit/README.md)，无需安装 Theos 或使用 RootHide Patcher。控制中心入口仍需另外安装兼容当前系统的 CCSupport。
+
+也可打开 `iOSHotspot.xcodeproj`，选择 **iOSHotspot** scheme 和 iOS 真机目标进行构建；Xcode 默认构建 rootless 版本。所有 `.deb` 均输出到 `build/release/`。依赖通过子模块引用原仓库：[libroot](https://github.com/opa334/libroot)、[QR Code generator](https://github.com/nayuki/QR-Code-generator)。
+
+RootHide 适配当前的验证范围限于本地编译与软件包检查；设备安装、三个宿主的实际注入，以及蜂窝、Wi-Fi 和 VPN 共享行为仍需真机验证。
