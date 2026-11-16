@@ -73,6 +73,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
 - (NSString*)effectiveSource;
 - (NSDictionary*)startSharing;
 - (NSDictionary*)performStartSharing;
+- (void)retryAutomaticWiFiStart:(NSString*)tag;
 - (void)reconcileAutomaticSource;
 - (void)cancelAutomaticStopTimer;
 @end
@@ -197,7 +198,12 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
    BOOL ready=[target isEqual:@"vpn"]?_nativeVPN.running:([raw[@"State"] intValue]==1023&&[raw[@"UState"] intValue]==1023);
    BOOL failed=[target isEqual:@"vpn"]&&[@[@"failed",@"unsupported"] containsObject:_nativeVPN.state[@"phase"]?:@""];
    if(!same||ready||failed)_automaticStartPending=nil;
-   else if(IHMonotonicTime()<[pending[@"deadline"] doubleValue])return;
+   else if(IHMonotonicTime()<[pending[@"deadline"] doubleValue]){
+    if([pending[@"source"] isEqual:@"wifi"]&&[raw[@"UState"] isEqual:@1023]&&![pending[@"wifiEnableObserved"] boolValue]){
+     NSMutableDictionary *updated=[pending mutableCopy];updated[@"wifiEnableObserved"]=@YES;_automaticStartPending=updated;
+    }
+    return;
+   }
    else{_automaticStartPending=nil;_automaticStartFailed=YES;_lastError=@"共享接口未在启动期限内就绪，请关闭热点后重试。";[self writeSharingRuntimeEnabled:NO error:nil];return;}
   }
   if(_automaticCleanupFailure&&[_automaticCleanupFailure isEqual:identity]&&!IHSharingIsStopped(raw))return;
@@ -273,6 +279,26 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
  _automaticWasOn=[_network.snapshot[@"hotspotOn"] boolValue];_automaticReconciling=NO;
 }
 
+- (void)retryAutomaticWiFiStart:(NSString*)tag {
+ NSDictionary *pending=_automaticStartPending;
+ if(![pending[@"tag"] isEqual:tag]||![pending[@"source"] isEqual:@"wifi"]||
+    [pending[@"wifiRetried"] boolValue]||[pending[@"wifiEnableObserved"] boolValue]||
+    IHMonotonicTime()>=[pending[@"deadline"] doubleValue]||
+    ![_store.config[@"source"] isEqual:@"auto"]||![_store.config[@"enabled"] boolValue]||
+    !_automaticHotspotRequested||_automaticStopping||_automaticStopBlocked||_nativeVPN.busy)return;
+ [_network refresh];
+ NSDictionary *raw=_network.snapshot[@"sharing"];
+ // 首次请求有时只让系统从不可用变为可用但关闭；仅在同一来源、没有旧接口时补发一次。
+ if(![[self automaticDetection][@"source"] isEqual:@"wifi"]||
+    ![raw[@"State"] isEqual:@1022]||![raw[@"UState"] isEqual:@1022]||!IHSharingIsStopped(raw))return;
+ NSMutableDictionary *updated=[pending mutableCopy];updated[@"wifiRetried"]=@YES;_automaticStartPending=updated;
+ NSError *error=nil;
+ if(![_network setHotspot:YES error:&error]){
+  _automaticStartPending=nil;_automaticStartFailed=YES;_lastError=error.localizedDescription?:@"系统拒绝再次开启 Wi-Fi 共享。";
+  [self writeSharingRuntimeEnabled:NO error:nil];
+ }else [self record:@"startRetried" details:@{@"source":@"wifi",@"reason":@"nativeAvailability"}];
+ [self event];
+}
 - (NSDictionary*)startSharing {
  BOOL automatic=[_store.config[@"source"] isEqual:@"auto"];NSString *tag=NSUUID.UUID.UUIDString;
  if(automatic)_automaticStartPending=@{@"tag":tag,@"source":[self effectiveSource],@"binding":_automaticIdentity[@"binding"]?:@{},@"deadline":@(IHMonotonicTime()+IHHotspotTransitionTimeout)};
@@ -282,8 +308,11 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   BOOL ready=[[self effectiveSource] isEqual:@"vpn"]?_nativeVPN.running:([raw[@"State"] intValue]==1023&&[raw[@"UState"] intValue]==1023);
   if(![reply[@"ok"] boolValue]||ready)_automaticStartPending=nil;
  }
- if(automatic){
+ if(automatic&&[_automaticStartPending[@"tag"] isEqual:tag]){
   __weak IHService *weak=self;
+  if([_automaticStartPending[@"source"] isEqual:@"wifi"]){
+   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{[weak retryAutomaticWiFiStart:tag];});
+  }
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,IHHotspotTransitionTimeout*NSEC_PER_SEC),dispatch_get_main_queue(),^{IHService *strong=weak;if([strong.automaticStartPending[@"tag"] isEqual:tag])[strong event];});
  }
  return reply;
