@@ -83,8 +83,9 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
  if(![[self effectiveSource] isEqual:@"vpn"]||![_store.config[@"enabled"] boolValue])return raw;
  // 旧客户端可能不发布接口数组；只聚合本轮原生门控已核实的实际网桥。
  NSDictionary *session=IH16ActiveSession(),*state=IHNativeReadJSON(IHNativeStatePath);
+ BOOL ipv6=IHNativeIPv6Enabled(session);
  if(!session||![state[@"phase"] isEqual:@"running"]||![state[@"gateOpen"] isEqual:@YES]||
-    !IH16IdentityMatches(session[@"binding"])||!IH16RoutesMatch(session[@"binding"]))return raw;
+    !IH16VPNIdentityMatches(session[@"binding"],ipv6)||!IH16VPNRoutesMatch(session[@"binding"],ipv6))return raw;
  NSArray *bridges=IH16SessionBridges(session);
  if(!bridges.count||![[NSSet setWithArray:bridges] isEqual:[NSSet setWithArray:state[@"bridges"]?:@[]]])return raw;
  NSString *name=session[@"binding"][@"interface"];NSMutableDictionary *value=[raw mutableCopy];

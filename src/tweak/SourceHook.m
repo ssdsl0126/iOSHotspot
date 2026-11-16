@@ -104,7 +104,8 @@ static Boolean IHStart(void *client,const char *external,int mode,unsigned int b
      do{
       NSDictionary *current=IH16ActiveSession();
       if(![current[@"nonce"] isEqual:session[@"nonce"]])break;
-      if(IH16IdentityMatches(current[@"binding"])&&IH16RoutesMatch(current[@"binding"]))break;
+      BOOL ipv6=IHNativeIPv6Enabled(current);
+      if(IH16VPNIdentityMatches(current[@"binding"],ipv6)&&IH16VPNRoutesMatch(current[@"binding"],ipv6))break;
       usleep(50000);
      }while(IHMonotonicTime()<deadline);
      session=IH16ActiveSession();
@@ -116,7 +117,7 @@ static Boolean IHStart(void *client,const char *external,int mode,unsigned int b
     xpc_object_t scoped=xpc_copy(parameters);xpc_dictionary_set_string(scoped,"interfaceIPv4Address",[subnet[@"address"] UTF8String]);xpc_dictionary_set_string(scoped,"networkMask",[subnet[@"mask"] UTF8String]);xpc_dictionary_set_string(scoped,"startAddress",[subnet[@"start"] UTF8String]);xpc_dictionary_set_string(scoped,"endAddress",[subnet[@"end"] UTF8String]);
     void *image=dlopen(NULL,RTLD_NOW);const char **natSymbol=image?dlsym(image,"netrbClientNat66Param"):NULL,**prefixSymbol=image?dlsym(image,"netrbClientRaPrefix"):NULL;
     if(session&&!IHNativeIPv6Enabled(session)){
-     BOOL valid=mode==201&&[selected isEqual:upstream]&&natSymbol&&IHNativeBindingMatches(session[@"binding"],IHKernelVPNBinding(),NO)&&IHKernelRoutesMatch([session[@"binding"][@"interfaceIndex"] unsignedIntValue],NO);
+     BOOL valid=mode==201&&[selected isEqual:upstream]&&natSymbol&&IH16VPNIdentityMatches(session[@"binding"],NO)&&IH16VPNRoutesMatch(session[@"binding"],NO);
      if(!valid){IHWriteDiagnostic(@"vpn",@(internal),original,@"",@"vpnIPv4AuthorizationRejected");return false;}
      xpc_object_t copy=xpc_copy(scoped);xpc_dictionary_set_value(copy,*natSymbol,NULL);
      Boolean accepted=IHOriginalStart(client,selected.UTF8String,mode,bridge,copy);

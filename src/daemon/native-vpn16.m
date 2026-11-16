@@ -49,8 +49,8 @@ static BOOL ownerValid(void){
 }
 static BOOL validVPN(void){
  BOOL ipv6=IHNativeIPv6Enabled(session);if(!ownerValid())return NO;
- BOOL identity=ipv6?IH16IdentityMatches(session[@"binding"]):IHNativeBindingMatches(session[@"binding"],IHKernelVPNBinding(),NO);
- BOOL routes=identity&&IHKernelRoutesMatch([session[@"binding"][@"interfaceIndex"] unsignedIntValue],ipv6);
+ BOOL identity=IH16VPNIdentityMatches(session[@"binding"],ipv6);
+ BOOL routes=identity&&IH16VPNRoutesMatch(session[@"binding"],ipv6);
  if(!routes)validationFailure=@{@"time":@(NSDate.date.timeIntervalSince1970),@"identity":@(identity),@"expected":session[@"binding"],@"actual":IHNativeEntities(session[@"binding"]),@"currentBinding":IHKernelVPNBinding(),@"route4a":@(IHKernelRouteIndex(AF_INET,"1.1.1.1")),@"route4b":@(IHKernelRouteIndex(AF_INET,"200.1.1.1")),@"route6":@(IHKernelRouteIndex(AF_INET6,"2600:1901:0:13e0::"))};
  return routes;
 }

@@ -79,7 +79,13 @@ static BOOL IH16IdentityMatches(NSDictionary *expected){
  }freeifaddrs(head);
  return [[v4 sortedArrayUsingSelector:@selector(compare:)] isEqual:expected[@"ipv4addresses"]]&&[[v6 sortedArrayUsingSelector:@selector(compare:)] isEqual:expected[@"ipv6addresses"]];
 }
-static BOOL IH16RoutesMatch(NSDictionary *binding){return IHKernelRoutesMatch([binding[@"interfaceIndex"] unsignedIntValue],[binding[@"ipv6addresses"] count]>0);}
+// 单栈共享只核对 IPv4 身份及路由；双栈继续严格校验两个地址族。
+static BOOL IH16VPNIdentityMatches(NSDictionary *binding,BOOL ipv6){
+ return ipv6?IH16IdentityMatches(binding):IHNativeBindingMatches(binding,IHKernelVPNBinding(),NO);
+}
+static BOOL IH16VPNRoutesMatch(NSDictionary *binding,BOOL ipv6){
+ return IHKernelRoutesMatch([binding[@"interfaceIndex"] unsignedIntValue],ipv6);
+}
 static NSDictionary *IH16ActiveSession(void){
  NSDictionary *session=IHNativeReadJSON(IHNativeSessionPath),*state=IHNativeReadJSON(IHNativeStatePath),*runtime=IHNativeReadJSON(IHSourceRuntimePath);
  if(![session[@"backend"] isEqual:IH16Backend]||![runtime[@"enabled"] boolValue]||![runtime[@"source"] isEqual:@"vpn"]||![runtime[@"kernelBackendVersion"] isEqual:@4])return nil;
