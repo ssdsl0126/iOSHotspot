@@ -32,8 +32,9 @@ static NSDictionary *IHKernelVPNBinding(void) {
    if(!IN6_IS_ADDR_UNSPECIFIED(&ip)&&!IN6_IS_ADDR_LOOPBACK(&ip)&&!IN6_IS_ADDR_LINKLOCAL(&ip)&&!IN6_IS_ADDR_MULTICAST(&ip)&&!IN6_IS_ADDR_V4MAPPED(&ip)){
     char buffer[INET6_ADDRSTRLEN];if(inet_ntop(AF_INET6,&ip,buffer,sizeof(buffer)))[ipv6 addObject:@(buffer)];}continue;}
   if(item->ifa_addr->sa_family!=AF_INET)continue;
-  struct in_addr ip=((struct sockaddr_in*)item->ifa_addr)->sin_addr;uint32_t value=ntohl(ip.s_addr);
-  if(!value||(value>>24)==127||(value>>16)==0xa9fe||(value>>24)>=224)continue;
+  struct in_addr ip=((struct sockaddr_in*)item->ifa_addr)->sin_addr;
+  // 主隧道含 IPv4 回环地址时拒绝整个绑定；其余地址由接口、DNS 和路由检查把关。
+  if((ntohl(ip.s_addr)>>24)==127){freeifaddrs(head);return @{};}
   char buffer[INET_ADDRSTRLEN];if(inet_ntop(AF_INET,&ip,buffer,sizeof(buffer)))[addresses addObject:@(buffer)];
  }freeifaddrs(head);if(!addresses.count)return @{};
  NSArray *raw=IHKernelVPNStore([NSString stringWithFormat:@"State:/Network/Service/%@/DNS",service])[@"ServerAddresses"];
