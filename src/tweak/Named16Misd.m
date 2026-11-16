@@ -21,7 +21,8 @@ static NSMutableSet *deferred;
 static BOOL ready,familyGuardReady;
 // 参数仅按Objective-C方法传递；不解引用系统私有结构。
 static void (*originalConvertStatus)(id,SEL,void*,id);
-static NSMutableSet *preparedUpstreams;
+static NSObject *vpnUpstreamLock;
+static NSString *pendingUpstreamNonce,*preparedUpstreamNonce;
 static BOOL vpnUpstreamReady;
 static void updateDiagnostic(NSDictionary *session,NSDictionary *values);
 
@@ -91,9 +92,14 @@ static void updateDiagnostic(NSDictionary *session,NSDictionary *values){
  }
 }
 // VPN上游不依赖蜂窝认证；只在本轮授权、隧道地址/DNS及路由全部匹配时适配。
+static BOOL vpnUpstreamMatches(NSDictionary *session){
+ NSDictionary *binding=session[@"binding"];BOOL ipv6=IHNativeIPv6Enabled(session);
+ return IHNativeProcess([session[@"parentPID"] intValue],"ioshotspotd")&&
+  IH16VPNIdentityMatches(binding,ipv6)&&IH16VPNRoutesMatch(binding,ipv6);
+}
 static void convertVPNStatus(id object,SEL selector,void *status,id rawStatus){
  NSDictionary *session=IHNativeFamilyPolicySession();
- BOOL active=status&&rawStatus&&IHNativeProcess([session[@"parentPID"] intValue],"ioshotspotd")&&IH16IdentityMatches(session[@"binding"])&&IH16RoutesMatch(session[@"binding"]);
+ BOOL active=status&&rawStatus&&vpnUpstreamMatches(session);
  if(!active){originalConvertStatus(object,selector,status,rawStatus);return;}
  // 只改传给系统转换方法的副本，属性读写全部经过具名方法。
  id copy=[rawStatus copy],availability=[NSClassFromString(@"CTDataConnectionAvailabilityStatus") new],connection=[NSClassFromString(@"CTDataConnectionStatus") new];
@@ -106,13 +112,26 @@ static void convertVPNStatus(id object,SEL selector,void *status,id rawStatus){
  ((void(*)(id,SEL,id))objc_msgSend)(connection,sel_registerName("setInterfaceName:"),session[@"binding"][@"interface"]);
  ((void(*)(id,SEL,id))objc_msgSend)(copy,sel_registerName("setConnectionStatus:"),connection);
  originalConvertStatus(object,selector,status,copy);
- NSString *nonce=session[@"nonce"];@synchronized(preparedUpstreams){if([preparedUpstreams containsObject:nonce])return;[preparedUpstreams removeAllObjects];[preparedUpstreams addObject:nonce];}
+ NSString *nonce=session[@"nonce"];
+ @synchronized(vpnUpstreamLock){
+  if([pendingUpstreamNonce isEqual:nonce]||[preparedUpstreamNonce isEqual:nonce])return;
+  pendingUpstreamNonce=nonce;
+ }
  // 回到当前系统队列更新misd的共享快照；不调用蜂窝激活，不修改CoreTelephony状态。
  dispatch_async(dispatch_get_current_queue(),^{@autoreleasepool{
   NSDictionary *current=IHNativeFamilyPolicySession();
-  if(![current[@"nonce"] isEqual:nonce]||!IH16IdentityMatches(current[@"binding"])||!IH16RoutesMatch(current[@"binding"]))return;
-  ((void(*)(id,SEL,id))objc_msgSend)(object,sel_registerName("processCTTetheringStatusChangeNotification:"),rawStatus);
-  updateDiagnostic(current,@{@"vpnUpstreamPrepared":@YES});
+  BOOL completed=[current[@"nonce"] isEqual:nonce]&&vpnUpstreamMatches(current);
+  if(completed){
+   ((void(*)(id,SEL,id))objc_msgSend)(object,sel_registerName("processCTTetheringStatusChangeNotification:"),rawStatus);
+   updateDiagnostic(current,@{@"vpnUpstreamPrepared":@YES});
+  }
+  // 过期任务只释放自己占用的排队标记；失配后允许同一会话的下一次通知重试。
+  @synchronized(vpnUpstreamLock){
+   if([pendingUpstreamNonce isEqual:nonce]){
+    if(completed)preparedUpstreamNonce=nonce;
+    pendingUpstreamNonce=nil;
+   }
+  }
  }});
 }
 static BOOL installVPNUpstream(void){
@@ -123,7 +142,7 @@ static BOOL installVPNUpstream(void){
  BOOL valid=result&&*result=='v'&&output&&*output=='^'&&input&&*input=='@';free(result);free(output);free(input);if(!valid)return NO;
  NSDictionary *requirements=@{@"CTTetheringStatus":@[@"copyWithZone:",@"setCarrierEnabled:",@"setUserAuthenticated:",@"setConnectionAvailabilityStatus:",@"setConnectionStatus:"],@"CTDataConnectionAvailabilityStatus":@[@"setAvailable:"],@"CTDataConnectionStatus":@[@"setState:",@"setPdp:",@"setInterfaceName:"]};
  for(NSString *name in requirements){Class target=NSClassFromString(name);for(NSString *methodName in requirements[name])if(!target||!class_getInstanceMethod(target,NSSelectorFromString(methodName)))return NO;}
- preparedUpstreams=[NSMutableSet new];hook(cls,convert,(IMP)convertVPNStatus,(IMP*)&originalConvertStatus);return originalConvertStatus!=NULL;
+ vpnUpstreamLock=[NSObject new];hook(cls,convert,(IMP)convertVPNStatus,(IMP*)&originalConvertStatus);return originalConvertStatus!=NULL;
 }
 static NSString *interfaceKey(NSDictionary *s,NSString *family){return [NSString stringWithFormat:@"State:/Network/Interface/%@/%@",s[@"binding"][@"interface"],family];}
 static void storeChanged(SCDynamicStoreRef store,CFArrayRef changes,void *context){@autoreleasepool{
