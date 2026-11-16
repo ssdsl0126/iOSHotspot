@@ -97,7 +97,7 @@ make roothide
 # 等效入口：make build IH_PACKAGE_SCHEME=roothide
 ```
 
-生成的 RootHide 包为 `build/release/com.newbie.ioshotspot_0.2.47+roothide1_iphoneos-arm64e.deb`。该入口使用 `packaging/roothide.xcconfig` 和随源码提供的官方 [RootHide devkit API 文件](third_party/roothide-devkit/README.md)，无需安装 Theos 或使用 RootHide Patcher。控制中心入口仍需另外安装兼容当前系统的 CCSupport。
+生成的 RootHide 包为 `build/release/com.newbie.ioshotspot_0.2.49+roothide1_iphoneos-arm64e.deb`。该入口使用 `packaging/roothide.xcconfig` 和随源码提供的官方 [RootHide devkit API 文件](third_party/roothide-devkit/README.md)，无需安装 Theos 或使用 RootHide Patcher。控制中心入口仍需另外安装兼容当前系统的 CCSupport。
 
 也可打开 `iOSHotspot.xcodeproj`，选择 **iOSHotspot** scheme 和 iOS 真机目标进行构建；Xcode 默认构建 rootless 版本。所有 `.deb` 均输出到 `build/release/`。依赖通过子模块引用原仓库：[libroot](https://github.com/opa334/libroot)、[QR Code generator](https://github.com/nayuki/QR-Code-generator)。
 

@@ -12,4 +12,5 @@
 - (BOOL)stop:(NSError**)error;
 - (BOOL)requestStop:(NSError**)error;
 - (BOOL)recover:(NSError**)error;
+- (BOOL)recoverUntil:(double)deadline error:(NSError**)error;
 @end

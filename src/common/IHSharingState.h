@@ -36,3 +36,7 @@ static inline BOOL IHSharingIsStopped(NSDictionary *sharing) {
         [sharing[@"InternalInterfaces"] isKindOfClass:NSArray.class]&&
         [sharing[@"InternalInterfaces"] count]==0)||IHSharingIsUnavailableEmpty(sharing);
 }
+// VPN重启和转发基线恢复还需确认关闭意图，不能把未激活的开启请求视为已撤回。
+static inline BOOL IHSharingHasStoppedRequest(NSDictionary *sharing) {
+    return [sharing[@"UState"] isEqual:@1022]&&IHSharingIsStopped(sharing);
+}

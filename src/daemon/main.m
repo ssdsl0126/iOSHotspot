@@ -64,6 +64,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
 @property(nonatomic) BOOL automaticStopping,automaticStopBlocked;
 @property(nonatomic) double automaticStopDeadline;
 @property(nonatomic,strong) dispatch_source_t automaticStopTimer;
+@property(nonatomic,copy) NSString *nativeFailurePendingNonce,*nativeFailureHandledNonce,*nativeFailureMessage;
 - (NSDictionary*)request:(NSDictionary*)request;
 - (void)event;
 - (BOOL)captureNetworkBaseline:(NSError**)error;
@@ -75,6 +76,8 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
 - (NSDictionary*)performStartSharing;
 - (void)reconcileAutomaticSource;
 - (void)cancelAutomaticStopTimer;
+- (BOOL)stopNativeVPN:(NSError**)error;
+- (void)finishNativeFailure:(NSDictionary*)state;
 @end
 @implementation IHService
 - (NSDictionary*)currentKernelVPNBinding{return IHKernelVPNBinding();}
@@ -204,7 +207,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   if(IHSharingIsUnavailableEmpty(raw)&&!_nativeVPN.busy&&[_store.config[@"enabled"] boolValue]){
    if(_automaticSource&&![_automaticSource isEqual:target]){
     NSError *error=nil;[self blockAutomaticForwarding];if(_automaticStopping)[self cancelAutomaticStopTimer];
-    if(![_nativeVPN stop:&error]){_automaticStartFailed=YES;_lastError=error.localizedDescription;return;}
+    if(![self stopNativeVPN:&error]){_automaticStartFailed=YES;_lastError=error.localizedDescription;return;}
     _automaticSource=target;_automaticIdentity=identity;_vpnBinding=[target isEqual:@"vpn"]?identity[@"binding"]:nil;_vpnStartedAt=nil;_automaticStartFailed=NO;
     if(![self syncNativeSourcePolicy:&error]){_automaticStartFailed=YES;_lastError=error.localizedDescription;return;}
    }
@@ -240,7 +243,9 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   if(active)[self sample];
   if(_nativeVPN.busy){
    // 自动切换不能同步等待后台清理，否则会堵住4秒状态请求。
-   if(![_nativeVPN requestStop:&error]){_automaticStartFailed=YES;_automaticStopBlocked=YES;_lastError=error.localizedDescription;[self writeSharingRuntimeEnabled:NO error:nil];}
+   _vpnBinding=nil;NSError *policyError=nil;BOOL revoked=[self writeSharingRuntimeEnabled:YES error:&policyError];
+   BOOL requested=[_nativeVPN requestStop:&error];
+   if(!requested||!revoked){_automaticStartFailed=YES;_automaticStopBlocked=YES;_lastError=(policyError?:error).localizedDescription;[self writeSharingRuntimeEnabled:NO error:nil];}
    else{
     _automaticStopping=YES;_automaticStopDeadline=IHMonotonicTime()+IHVPNStopTimeout;
     _automaticStopTimer=dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,dispatch_get_main_queue());
@@ -250,7 +255,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
    _automaticReconciling=NO;return;
   }
   BOOL stopped=YES;
-  if(_nativeVPN.busy||[_automaticSource isEqual:@"vpn"])stopped=[_nativeVPN stop:&error];
+  if(_nativeVPN.busy||[_automaticSource isEqual:@"vpn"])stopped=[self stopNativeVPN:&error];
   if(stopped&&(active||!IHSharingIsStopped(_network.snapshot[@"sharing"])))stopped=[_network setHotspot:NO error:&error];
   [_network refresh];
   if(!stopped||!IHSharingIsStopped(_network.snapshot[@"sharing"])){_lastError=error.localizedDescription?:@"自动模式正在等待旧共享接口释放。";_automaticStartFailed=YES;_automaticCleanupFailure=identity;[self writeSharingRuntimeEnabled:NO error:nil];_automaticReconciling=NO;return;}
@@ -298,6 +303,16 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
    _vpnBinding=[self currentKernelVPNBinding];if(!_vpnBinding.count){if(![_store.config[@"source"] isEqual:@"auto"]&&[_store.config[@"autoVPN"] boolValue])return [self beginAutomaticVPNStart];return [self failure:@"VPN 未连接或隧道/DNS 尚未就绪，未开启热点。"];}[_vpnConnector cancel];
    NSDictionary *hook=[self sourceHookState];
    if(![hook[@"build"] isEqual:@(IHSourcePolicyBuild)])return [self failure:@"新的具名来源模块尚未加载，未开启 VPN 热点。"];
+   NSDictionary *journal=IHNativeReadJSON(IHNativeJournalPath);
+   if([journal[@"backend"] isEqual:IH16Backend]){
+    [_network refresh];
+    if(!IHSharingHasStoppedRequest(_network.snapshot[@"sharing"])){
+     // 前一轮可能尚未取得网桥名称，必须先确认无线服务关闭才能恢复转发基线。
+     IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);
+     if(![_network setHotspot:NO error:&error])return [self failure:error.localizedDescription];
+     [_network refresh];if(!IHSharingHasStoppedRequest(_network.snapshot[@"sharing"]))return [self failure:@"前一次系统共享尚未关闭，未启动新的VPN会话。"];
+    }
+   }
    if(![_nativeVPN prepare:_vpnBinding ipv6:[_store.config[@"vpnIPv6"] boolValue] error:&error])return [self failure:error.localizedDescription];
   }
   if([source isEqual:@"wifi"]){
@@ -329,6 +344,56 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
  _previousCounters=current;_measuredInterface=name;
  if(!_lastCheckpoint||[now timeIntervalSinceDate:_lastCheckpoint]>=60){[_store save];_lastCheckpoint=now;}
 }
+- (BOOL)stopNativeVPN:(NSError**)error {
+ double deadline=IHMonotonicTime()+IHMutationRequestTimeout-1;
+ // 先撤回内存与文件授权，排队中的来源通知不能在停止失败后重新开启VPN共享。
+ NSDictionary *journal=IHNativeReadJSON(IHNativeJournalPath);
+ if(_nativeVPN.busy||[journal[@"backend"] isEqual:IH16Backend]){IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);}
+ _vpnBinding=nil;
+ NSError *policyError=nil;BOOL revoked=[self writeSharingRuntimeEnabled:YES error:&policyError];
+ NSError *stoppingError=nil;
+ BOOL recovered=[_nativeVPN stop:&stoppingError];
+ journal=IHNativeReadJSON(IHNativeJournalPath);BOOL radioCloseAttempted=NO;
+ // 子进程已退出而恢复因无线残留失败时，先关无线再恢复，不能让停止命令卡在同一日志上。
+ if(!recovered&&!_nativeVPN.busy&&[journal[@"backend"] isEqual:IH16Backend]){
+  IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);
+  NSError *cleanupError=nil;
+  if(IHMonotonicTime()+IHRadioStopTimeout<deadline){
+   radioCloseAttempted=YES;BOOL stopped=[_network setHotspot:NO error:&cleanupError];[_network refresh];
+   recovered=stopped&&IHSharingHasStoppedRequest(_network.snapshot[@"sharing"])&&[_nativeVPN recoverUntil:deadline error:&cleanupError];
+  }else cleanupError=[NSError errorWithDomain:NSPOSIXErrorDomain code:ETIMEDOUT userInfo:@{NSLocalizedDescriptionKey:@"热点清理时间不足，已阻断转发并保留恢复日志，请稍后重试。"}];
+  if(cleanupError)stoppingError=cleanupError;
+ }
+ if(!revoked){
+  // 文件写入失败也完成能执行的停止动作，保持转发阻断并向调用者报告错误。
+  if(!_nativeVPN.busy&&!radioCloseAttempted&&IHMonotonicTime()+IHRadioStopTimeout<deadline)[_network setHotspot:NO error:nil];
+  if(error)*error=policyError;return NO;
+ }
+ if(!recovered&&error)*error=stoppingError;return recovered;
+}
+- (void)finishNativeFailure:(NSDictionary*)state {
+ // 失败通知可能先于子进程退出；先撤回绑定并阻断转发，退出通知再完成一次收尾。
+ NSString *nonce=state[@"nonce"]?:_nativeVPN.nonce;
+ if([_nativeFailureHandledNonce isEqual:nonce])return;
+ NSDictionary *journal=IHNativeReadJSON(IHNativeJournalPath);
+ if(_nativeVPN.busy||[journal[@"backend"] isEqual:IH16Backend]){IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);}
+ if(![_nativeFailurePendingNonce isEqual:nonce]){
+  _nativeFailurePendingNonce=nonce;
+  NSString *message=state[@"error"];
+  _nativeFailureMessage=message.length?message:@"原生 VPN 会话失败。";
+  _vpnBinding=nil;NSError *error=nil;
+  if(![self writeSharingRuntimeEnabled:YES error:&error])_nativeFailureMessage=[_nativeFailureMessage stringByAppendingFormat:@" 撤回VPN绑定失败：%@",error.localizedDescription?:@"授权写入失败。"];
+ }
+ _lastError=_nativeFailureMessage;
+ if(_nativeVPN.busy)return;
+ // 标记先于可能触发网络通知的关闭操作，避免每次状态事件都同步等待关闭期限。
+ _nativeFailureHandledNonce=nonce;_nativeFailurePendingNonce=nil;
+ NSError *error=nil;BOOL stopped=[_network setHotspot:NO error:&error];[_network refresh];
+ if(!stopped||!IHSharingIsStopped(_network.snapshot[@"sharing"])){
+  IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);
+  _lastError=[_nativeFailureMessage stringByAppendingFormat:@" 热点清理未完成：%@",error.localizedDescription?:@"系统仍未确认共享关闭，请关闭热点后重试。"];
+ }
+}
 - (void)event {
  if(_processing)return;_processing=YES;[_network refresh];[self reconcileAutomaticSource];
  if(_automaticStopping||_automaticStopBlocked){_processing=NO;[self announce];return;}
@@ -339,10 +404,10 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
    IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];[_network setHotspot:NO error:nil];
    _lastError=@"原生 VPN 后台意外退出，已阻断转发并关闭热点。";
   }
-  if(_nativeVPN.running&&!active){_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];[_nativeVPN stop:nil];}
+  if(_nativeVPN.running&&!active){_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];[self stopNativeVPN:nil];}
   if([@[@"failed",@"unsupported"] containsObject:phase]){
    if([_store.config[@"source"] isEqual:@"auto"])_automaticStartFailed=YES;
-   _lastError=state[@"error"]?:@"原生 VPN 会话失败，热点已关闭。";_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];
+   [self finishNativeFailure:state];
   }
   // 无线服务就绪前不开始统计和无客户端倒计时。
   active=_nativeVPN.running&&active;
@@ -359,7 +424,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   if(batteryLimit&&battery>=0&&battery<=batteryLimit)reason=@"lowBattery";
   if(dailyLimit&&[totals[@"todayRx"] unsignedLongLongValue]+[totals[@"todayTx"] unsignedLongLongValue]>=dailyLimit)reason=@"dailyLimit";
   if([[self effectiveSource] isEqual:@"wifi"]&&[_network.snapshot[@"externalInterfaces"] count]&&![_network.snapshot[@"upstream"] isEqual:@"en0"])reason=@"selectedSourceUnavailable";
-  if(reason){_automaticHotspotRequested=NO;_automaticWasOn=NO;NSError *error=nil;if([[self effectiveSource] isEqual:@"vpn"])[_nativeVPN stop:&error];else [_network setHotspot:NO error:&error];_lastError=error.localizedDescription?:@"";[self record:@"automaticStop" details:@{@"reason":reason}];}
+  if(reason){_automaticHotspotRequested=NO;_automaticWasOn=NO;NSError *error=nil;if([[self effectiveSource] isEqual:@"vpn"])[self stopNativeVPN:&error];else [_network setHotspot:NO error:&error];_lastError=error.localizedDescription?:@"";[self record:@"automaticStop" details:@{@"reason":reason}];}
  }else{
   _vpnStartedAt=nil;
   if(_timer){dispatch_source_cancel(_timer);_timer=nil;}
@@ -441,7 +506,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   _automaticHotspotRequested=NO;_automaticWasOn=NO;
   [_vpnConnector cancel];
   [self sample];
-  if(_nativeVPN.busy||[[self effectiveSource] isEqual:@"vpn"]){if(![_nativeVPN stop:&error])return [self failure:error.localizedDescription];if(![_network setHotspot:NO error:&error])return [self failure:error.localizedDescription];_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];}
+  if(_nativeVPN.busy||[[self effectiveSource] isEqual:@"vpn"]){if(![self stopNativeVPN:&error])return [self failure:error.localizedDescription];if(![_network setHotspot:NO error:&error])return [self failure:error.localizedDescription];_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];}
   if(![self writeSharingRuntimeEnabled:NO error:&error])return [self failure:error.localizedDescription];if(_baseline){if(![_network restoreBaseline:_baseline error:&error])return [self failure:error.localizedDescription];[[NSFileManager defaultManager]removeItemAtPath:journalPath error:nil];_baseline=nil;}
   if(![_store updateConfig:@{@"enabled":@NO} error:&error])return [self failure:error.localizedDescription];[self cancelAutomaticStopTimer];_automaticStopBlocked=NO;[self event];[self record:@"disabled" details:@{}];return [self status];}
  if([command isEqual:@"toggle"]){[_network refresh];command=[_network.snapshot[@"hotspotOn"] boolValue]?@"stop":@"start";}
@@ -449,7 +514,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   if([_store.config[@"source"] isEqual:@"auto"]){
    if(![_store.config[@"enabled"] boolValue])return [self failure:@"请先启用 iOSHotspot。"];
    if(_automaticStopBlocked)return [self failure:_lastError?:@"请先关闭热点，完成旧会话清理后再开启。"];
-   if(!_nativeVPN.busy&&[@[@"failed",@"unsupported"] containsObject:_nativeVPN.state[@"phase"]?:@""]&&![_nativeVPN stop:&error])return [self failure:error.localizedDescription];
+   if(!_nativeVPN.busy&&[@[@"failed",@"unsupported"] containsObject:_nativeVPN.state[@"phase"]?:@""]&&![self stopNativeVPN:&error])return [self failure:error.localizedDescription];
    _automaticHotspotRequested=YES;_automaticStartFailed=NO;[self event];
    return _automaticStartFailed?[self failure:_lastError]:[self status];
   }return [self startSharing];}
@@ -458,7 +523,7 @@ static BOOL IHAutomaticCleanupError(NSString *message){return [message containsS
   [_vpnConnector cancel];
   if(_automaticStopping)return [self status];
   [self sample];_stopRequestedAt=NSDate.date;BOOL vpn=_nativeVPN.busy||[[self effectiveSource] isEqual:@"vpn"];
-  if(vpn&&![_nativeVPN stop:&error]){_stopRequestedAt=nil;return [self failure:error.localizedDescription];}
+  if(vpn&&![self stopNativeVPN:&error]){_stopRequestedAt=nil;return [self failure:error.localizedDescription];}
   // 即使配置为VPN却没有存活的宿主，也必须实际关闭系统热点。
   if(![_network setHotspot:NO error:&error]){_stopRequestedAt=nil;return [self failure:error.localizedDescription];}
   if(vpn){_vpnBinding=nil;[self writeSharingRuntimeEnabled:YES error:nil];}

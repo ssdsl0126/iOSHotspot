@@ -20,7 +20,7 @@ static BOOL IH16USBPort(NSString *name){
 }
 static BOOL IH16SharingStopped(void){
  NSDictionary *value=IHKernelVPNStore(@"com.apple.MobileInternetSharing");
- return IHSharingIsStopped(value);
+ return IHSharingHasStoppedRequest(value);
 }
 static NSDictionary *IH16AllocateSubnets(void){
  struct ifaddrs *head=NULL;if(getifaddrs(&head))return nil;NSMutableArray *selected=[NSMutableArray new];
@@ -87,5 +87,5 @@ static NSDictionary *IH16ActiveSession(void){
  if(IHNativeIPv6Enabled(runtime)!=IHNativeIPv6Enabled(session))return nil;
  if(!IHNativeProcess([session[@"parentPID"] intValue],"ioshotspotd")||!IH16Process([state[@"pid"] intValue])||[state[@"parentPID"] intValue]!=[session[@"parentPID"] intValue])return nil;
  NSString *name=session[@"binding"][@"interface"];if(!IHKernelVPNName(name)||if_nametoindex(name.UTF8String)!=[session[@"binding"][@"interfaceIndex"] unsignedIntValue])return nil;
- return session;
+ return IHNativeSessionWithStartupAttempt(session,state);
 }

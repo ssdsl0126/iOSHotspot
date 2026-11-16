@@ -9,6 +9,7 @@
 !/packaging/
 !/scripts/
 !/third_party/
+!/tests/
 
 /scripts/*
 !/scripts/build.sh

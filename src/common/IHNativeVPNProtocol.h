@@ -29,6 +29,16 @@ static BOOL IHNativeBindingMatches(NSDictionary *expected,NSDictionary *current,
  for(NSString *key in @[@"interface",@"interfaceIndex",@"serviceID",@"ipv4addresses",@"dnsServers"])if(![expected[key] isEqual:current[key]])return NO;
  return YES;
 }
+// 停止时保留nonce供收尾门控使用；开启许可和绑定才是继续工作的授权。
+static BOOL IHNativeSessionAuthorizationMatches(NSDictionary *session,NSDictionary *runtime){
+ NSString *nonce=session[@"nonce"];NSDictionary *binding=session[@"binding"],*authorized=runtime[@"vpnBinding"];
+ if(![nonce isKindOfClass:NSString.class]||!nonce.length||
+    ![binding isKindOfClass:NSDictionary.class]||![authorized isKindOfClass:NSDictionary.class])return NO;
+ BOOL ipv6=IHNativeIPv6Enabled(session);
+ return [runtime[@"enabled"] isEqual:@YES]&&[runtime[@"source"] isEqual:@"vpn"]&&
+  [runtime[@"nativeSession"] isEqual:nonce]&&[runtime[@"allowLegacyStart"] isEqual:@YES]&&
+  IHNativeIPv6Enabled(runtime)==ipv6&&IHNativeBindingMatches(binding,authorized,ipv6);
+}
 
 static BOOL IHNativeInterfaceName(NSString *name){
  if(![name isKindOfClass:NSString.class]||!name.length||name.length>=IFNAMSIZ)return NO;
@@ -81,12 +91,24 @@ static BOOL IHNativeBindingValid(NSDictionary *session){
  for(NSString *key in entities)if(![entities[key] isEqual:IHKernelVPNStore(key)])return NO;
  return IHKernelRoutesMatch([binding[@"interfaceIndex"] unsignedIntValue],ipv6&&[binding[@"ipv6addresses"] count]>0);
 }
+// 同一nonce重启无线服务时，系统回调只能确认其捕获的那一次启动。
+static BOOL IHNativeStartupAttemptMatches(NSDictionary *session,NSDictionary *state){
+ NSNumber *attempt=session[@"startupAttempt"],*current=state[@"startupAttempts"];
+ return [attempt isKindOfClass:NSNumber.class]&&attempt.integerValue>0&&
+  [current isKindOfClass:NSNumber.class]&&current.integerValue>0&&
+  [attempt isEqual:current]&&[state[@"nonce"] isEqual:session[@"nonce"]];
+}
+static NSDictionary *IHNativeSessionWithStartupAttempt(NSDictionary *session,NSDictionary *state){
+ NSNumber *attempt=state[@"startupAttempts"];
+ if(![attempt isKindOfClass:NSNumber.class]||attempt.integerValue<=0)return nil;
+ NSMutableDictionary *scoped=[session mutableCopy];scoped[@"startupAttempt"]=attempt;return scoped;
+}
 static NSDictionary *IHNativeFamilyPolicySession(void){
  NSDictionary *session=IHNativeReadJSON(IHNativeSessionPath),*state=IHNativeReadJSON(IHNativeStatePath),*runtime=IHNativeReadJSON(IHSourceRuntimePath);
  if(!session.count||![runtime[@"enabled"] boolValue]||![runtime[@"source"] isEqual:@"vpn"]||![runtime[@"nativeSession"] isEqual:session[@"nonce"]]||![state[@"nonce"] isEqual:session[@"nonce"]])return nil;
  if([session[@"parentPID"] intValue]<=1||[state[@"parentPID"] intValue]!=[session[@"parentPID"] intValue]||IHNativeIPv6Enabled(runtime)!=IHNativeIPv6Enabled(session))return nil;
  // 此函数只收紧IPv6门控；进程退出到清理完成之间仍按可信root会话记录保持阻断。
- return session;
+ return IHNativeSessionWithStartupAttempt(session,state);
 }
 static int IHNativeSetForwarding(int family,int value){return sysctlbyname(family==AF_INET?"net.inet.ip.forwarding":"net.inet6.ip6.forwarding",NULL,NULL,&value,sizeof(value));}
 static NSString *IHNativeIfconfigUntil(NSArray<NSString*> *arguments,double deadline,NSError **error){

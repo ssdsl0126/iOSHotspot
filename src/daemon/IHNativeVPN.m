@@ -23,7 +23,8 @@
  BOOL legacy=sourceReady&&current&&_supported&&[misd[@"legacyHooksReady"] boolValue];
  BOOL family=sourceReady&&current&&[misd[@"familyGuardReady"] boolValue];
  BOOL wifiPrefix=current&&[misd[@"wifiPrefixReady"] boolValue];
- return @{@"legacyClientAPI":@(_supported),@"legacyHooksReady":@(legacy),@"sourceHookReady":@(sourceReady),@"wifiSourceHookReady":@(wifiReady),@"wifiNativePrefixReady":@(wifiPrefix),@"usbSourceHookReady":@(usbReady),@"familyGuardReady":@(family),@"plannedIPv4Backend":legacy?IH16Backend:@"unavailable",@"plannedIPv6Backend":legacy?IH16Backend:@"unavailable",@"selectionTiming":@"beforeHotspotStart",@"usesOSVersion":@NO};
+ BOOL vpnUpstream=current&&[misd[@"vpnUpstreamReady"] boolValue];
+ return @{@"legacyClientAPI":@(_supported),@"legacyHooksReady":@(legacy),@"sourceHookReady":@(sourceReady),@"wifiSourceHookReady":@(wifiReady),@"wifiNativePrefixReady":@(wifiPrefix),@"usbSourceHookReady":@(usbReady),@"familyGuardReady":@(family),@"vpnUpstreamReady":@(vpnUpstream),@"plannedIPv4Backend":legacy?IH16Backend:@"unavailable",@"plannedIPv6Backend":legacy?IH16Backend:@"unavailable",@"selectionTiming":@"beforeHotspotStart",@"usesOSVersion":@NO};
 }
 - (NSString*)nonce{return _nonce?:@"";}
 - (NSDictionary*)state{NSDictionary *state=IHNativeReadJSON(IHNativeStatePath);if(!_nonce.length||![state[@"nonce"] isEqual:_nonce])return @{};return state?:@{};}
@@ -35,13 +36,15 @@
 }
 - (BOOL)recoverUntil:(double)deadline error:(NSError**)error{
  NSDictionary *journal=IHNativeReadJSON(IHNativeJournalPath);if(!journal)return YES;
+ if(IHMonotonicTime()>=deadline)return [self fail:@"原生会话恢复已超时，已保留恢复日志。" error:error];
  IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);
  if(![journal[@"backend"] isEqual:IH16Backend])return [self fail:@"发现无法识别的旧恢复日志，禁止继续启动共享。" error:error];
  const char *helper=IH16Helper.UTF8String;
  pid_t pid=[journal[@"pid"] intValue];if(IHNativeProcess(pid,helper)){kill(pid,SIGTERM);while(IHMonotonicTime()<deadline&&IHNativeProcess(pid,helper))usleep(100000);if(IHNativeProcess(pid,helper))return [self fail:@"前一次原生 VPN 会话仍在退出，禁止叠加新会话。" error:error];}
  if(!IHNativeReadJSON(IHNativeJournalPath))return YES;
  for(NSDictionary *entry in journal[@"ipv6Aliases"]){NSString *name=entry[@"interface"],*address=entry[@"address"];if(IHNativeInterfaceName(name)&&if_nametoindex(name.UTF8String)==[entry[@"index"] unsignedIntValue]&&IH16HasIPv6Address(name,address)&&!IHNativeIfconfigUntil(@[name,@"inet6",address,@"-alias"],deadline,error))return NO;}
- NSString *bridge=journal[@"bridge"];if(IHNativeInterfaceName(bridge)&&if_nametoindex(bridge.UTF8String)&&!IH16SharingStopped())return [self fail:@"前一次原生网桥仍未释放，已阻断转发；保留恢复日志。" error:error];
+ // 启动可能在记录网桥前失败；空 bridge 不代表系统共享已经停止。
+ if(!IH16SharingStopped())return [self fail:@"前一次系统共享仍未关闭，已阻断转发；保留恢复日志。" error:error];
  int first=[journal[@"baseline4"] intValue],second=[journal[@"baseline6"] intValue];
  if((first!=0&&first!=1)||(second!=0&&second!=1))return [self fail:@"原生会话恢复日志无效。" error:error];
  if(IHNativeSetForwarding(AF_INET,first)||IHNativeSetForwarding(AF_INET6,second))return [self fail:@"内核转发基线恢复失败。" error:error];
@@ -79,7 +82,9 @@
    strong->_pid=0;
    // 先清理旧监听，再通知服务；回调可能立即启动下一轮，不能取消新监听。
    if(strong->_exitWatch){dispatch_source_cancel(strong->_exitWatch);strong->_exitWatch=nil;}
-   IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);if(strong.changed)strong.changed();
+   NSDictionary *journal=IHNativeReadJSON(IHNativeJournalPath);
+   if([journal[@"backend"] isEqual:IH16Backend]){IHNativeSetForwarding(AF_INET,0);IHNativeSetForwarding(AF_INET6,0);}
+   if(strong.changed)strong.changed();
   }
  });dispatch_resume(_exitWatch);return YES;
 }

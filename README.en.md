@@ -99,7 +99,7 @@ make roothide
 # Equivalent: make build IH_PACKAGE_SCHEME=roothide
 ```
 
-The RootHide package is written to `build/release/com.newbie.ioshotspot_0.2.47+roothide1_iphoneos-arm64e.deb`. This entry point uses `packaging/roothide.xcconfig` and the official [RootHide devkit API files](third_party/roothide-devkit/README.md) included with the source. Theos and RootHide Patcher are not required. The optional Control Center entry still requires CCSupport compatible with your iOS version.
+The RootHide package is written to `build/release/com.newbie.ioshotspot_0.2.49+roothide1_iphoneos-arm64e.deb`. This entry point uses `packaging/roothide.xcconfig` and the official [RootHide devkit API files](third_party/roothide-devkit/README.md) included with the source. Theos and RootHide Patcher are not required. The optional Control Center entry still requires CCSupport compatible with your iOS version.
 
 Alternatively, open `iOSHotspot.xcodeproj`, select the **iOSHotspot** scheme and an iOS device destination, and build; the default Xcode build remains rootless. All `.deb` files are written to `build/release/`. Dependencies reference their original repositories as submodules: [libroot](https://github.com/opa334/libroot) and [QR Code generator](https://github.com/nayuki/QR-Code-generator).
 

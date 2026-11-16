@@ -1,4 +1,5 @@
 #import "../common/IHNamedVPN16.h"
+#import "../common/IHVPNStartup.h"
 #import "WiFiPrefix.h"
 #include <xpc/xpc.h>
 #include <sys/ioctl.h>
@@ -23,11 +24,17 @@ static BOOL ready,familyGuardReady;
 static void (*originalConvertStatus)(id,SEL,void*,id);
 static NSMutableSet *preparedUpstreams;
 static BOOL vpnUpstreamReady;
-static void updateDiagnostic(NSDictionary *session,NSDictionary *values);
+static BOOL updateDiagnostic(NSDictionary *session,NSDictionary *values);
 
 static NSString *ruleKey(void *user,uintptr_t transaction){return [NSString stringWithFormat:@"%p:%llu",user,(unsigned long long)transaction];}
 static void recordRule(NSDictionary *session,void *user,uintptr_t transaction,NSDictionary *values){
- @synchronized(ruleSessions){NSString *key=ruleKey(user,transaction);NSMutableDictionary *entry=[ruleSessions[key] mutableCopy]?:[NSMutableDictionary new];if(![entry[@"nonce"] isEqual:session[@"nonce"]])[entry removeAllObjects];entry[@"nonce"]=session[@"nonce"];[entry addEntriesFromDictionary:values];ruleSessions[key]=entry;}
+ if(!IHNativeStartupAttemptMatches(session,IHNativeReadJSON(IHNativeStatePath)))return;
+ @synchronized(ruleSessions){
+  NSString *key=ruleKey(user,transaction);NSMutableDictionary *entry=[ruleSessions[key] mutableCopy]?:[NSMutableDictionary new];
+  // 事务直到commit才结束；延迟Add不能把旧事务重新标成新一次无线启动。
+  if(entry.count&&(![entry[@"nonce"] isEqual:session[@"nonce"]]||![entry[@"startupAttempt"] isEqual:session[@"startupAttempt"]]))return;
+  entry[@"nonce"]=session[@"nonce"];entry[@"startupAttempt"]=session[@"startupAttempt"];[entry addEntriesFromDictionary:values];ruleSessions[key]=entry;
+ }
 }
 static BOOL prefixPassRule(xpc_object_t rule,NSDictionary *session){
  // 前缀共享分支生成的精确形状；旧系统的原生NAT66规则不匹配此条件。
@@ -83,17 +90,24 @@ static CFDictionaryRef copyRealIPv6(NSString *name){
  }close(fd);freeifaddrs(head);if(!addresses.count)return NULL;
  return CFBridgingRetain(@{@"Addresses":addresses,@"Flags":flags,@"PrefixLength":prefixes});
 }
-static void updateDiagnostic(NSDictionary *session,NSDictionary *values){
+static BOOL updateDiagnostic(NSDictionary *session,NSDictionary *values){
  @synchronized(diagnostic){
-  if(session&&[diagnostic[@"nonce"] isEqual:session[@"nonce"]]){BOOL changed=NO;for(NSString *key in values)if(![diagnostic[key] isEqual:values[key]]){changed=YES;break;}if(!changed)return;}
-  if(session&&![(diagnostic[@"nonce"]?:@"") isEqual:session[@"nonce"]]){[diagnostic removeAllObjects];diagnostic[@"nonce"]=session[@"nonce"];diagnostic[@"heldRA"]=@[];}
-  [diagnostic addEntriesFromDictionary:values];diagnostic[@"build"]=IH16Backend;diagnostic[@"packageVersion"]=@(IH_BUILD_VERSION);diagnostic[@"sourcePolicyBuild"]=@(IHSourcePolicyBuild);diagnostic[@"ready"]=@(ready);diagnostic[@"legacyHooksReady"]=@(ready);diagnostic[@"familyGuardReady"]=@(familyGuardReady);diagnostic[@"vpnUpstreamReady"]=@(vpnUpstreamReady);diagnostic[@"wifiPrefixReady"]=@(IHWiFiPrefixIsReady());diagnostic[@"vpnIPv6PolicyVersion"]=@1;diagnostic[@"pid"]=@(getpid());diagnostic[@"time"]=@(NSDate.date.timeIntervalSince1970);if(IHNativeWriteRuntimeJSON(IH16MisdState,diagnostic))notify_post(IH16ReadyNotification);
+  if(session){
+   // 异步PF/RA回调不得把上一轮无线启动的就绪确认写入当前尝试。
+   if(!IHNativeStartupAttemptMatches(session,IHNativeReadJSON(IHNativeStatePath)))return NO;
+   BOOL sameAttempt=[diagnostic[@"nonce"] isEqual:session[@"nonce"]]&&[diagnostic[@"startupAttempt"] isEqual:session[@"startupAttempt"]];
+   if(sameAttempt){BOOL changed=NO;for(NSString *key in values)if(![diagnostic[key] isEqual:values[key]]){changed=YES;break;}if(!changed)return YES;}
+  }
+  NSMutableDictionary *candidate=session?IHVPNStartupDiagnosticForAttempt(diagnostic,session,nil):[diagnostic mutableCopy];
+  [candidate addEntriesFromDictionary:values];candidate[@"build"]=IH16Backend;candidate[@"packageVersion"]=@(IH_BUILD_VERSION);candidate[@"sourcePolicyBuild"]=@(IHSourcePolicyBuild);candidate[@"ready"]=@(ready);candidate[@"legacyHooksReady"]=@(ready);candidate[@"familyGuardReady"]=@(familyGuardReady);candidate[@"vpnUpstreamReady"]=@(vpnUpstreamReady);candidate[@"wifiPrefixReady"]=@(IHWiFiPrefixIsReady());candidate[@"vpnIPv6PolicyVersion"]=@1;candidate[@"pid"]=@(getpid());candidate[@"time"]=@(NSDate.date.timeIntervalSince1970);
+  BOOL written=IHVPNStartupPublishDiagnostic(diagnostic,candidate,^BOOL(NSDictionary *value){return IHNativeWriteRuntimeJSON(IH16MisdState,value);});
+  if(written)notify_post(IH16ReadyNotification);return written;
  }
 }
 // VPN上游不依赖蜂窝认证；只在本轮授权、隧道地址/DNS及路由全部匹配时适配。
 static void convertVPNStatus(id object,SEL selector,void *status,id rawStatus){
  NSDictionary *session=IHNativeFamilyPolicySession();
- BOOL active=status&&rawStatus&&IHNativeProcess([session[@"parentPID"] intValue],"ioshotspotd")&&IH16IdentityMatches(session[@"binding"])&&IH16RoutesMatch(session[@"binding"]);
+ BOOL active=status&&rawStatus&&IHNativeSessionAuthorizationMatches(session,IHNativeReadJSON(IHSourceRuntimePath))&&IHNativeProcess([session[@"parentPID"] intValue],"ioshotspotd")&&IH16IdentityMatches(session[@"binding"])&&IH16RoutesMatch(session[@"binding"]);
  if(!active){originalConvertStatus(object,selector,status,rawStatus);return;}
  // 只改传给系统转换方法的副本，属性读写全部经过具名方法。
  id copy=[rawStatus copy],availability=[NSClassFromString(@"CTDataConnectionAvailabilityStatus") new],connection=[NSClassFromString(@"CTDataConnectionStatus") new];
@@ -110,9 +124,17 @@ static void convertVPNStatus(id object,SEL selector,void *status,id rawStatus){
  // 回到当前系统队列更新misd的共享快照；不调用蜂窝激活，不修改CoreTelephony状态。
  dispatch_async(dispatch_get_current_queue(),^{@autoreleasepool{
   NSDictionary *current=IHNativeFamilyPolicySession();
-  if(![current[@"nonce"] isEqual:nonce]||!IH16IdentityMatches(current[@"binding"])||!IH16RoutesMatch(current[@"binding"]))return;
+  if(![current[@"nonce"] isEqual:nonce]||!IHNativeSessionAuthorizationMatches(current,IHNativeReadJSON(IHSourceRuntimePath))||!IH16IdentityMatches(current[@"binding"])||!IH16RoutesMatch(current[@"binding"])){
+   // 暂时失配只取消本轮准备；后续真实CT事件可重试，不清除其他nonce。
+   @synchronized(preparedUpstreams){[preparedUpstreams removeObject:nonce];}
+   return;
+  }
+  // 调用期间保留标记，防止同步回调递归排队；成功后继续保留准备确认。
   ((void(*)(id,SEL,id))objc_msgSend)(object,sel_registerName("processCTTetheringStatusChangeNotification:"),rawStatus);
-  updateDiagnostic(current,@{@"vpnUpstreamPrepared":@YES});
+  // 发布失败不算已完成准备，允许下一次真实CT事件重新尝试。
+  if(!updateDiagnostic(current,@{@"vpnUpstreamPrepared":@YES})){
+   @synchronized(preparedUpstreams){[preparedUpstreams removeObject:nonce];}
+  }
  }});
 }
 static BOOL installVPNUpstream(void){
@@ -205,7 +227,14 @@ static int spawnProcess(pid_t *pid,const char *path,const posix_spawn_file_actio
  if(!code)code=posix_spawnattr_setflags(working,flags|POSIX_SPAWN_START_SUSPENDED);
  if(!code){code=originalSpawn(pid,path,actions,working,argv,environment);posix_spawnattr_setflags(working,flags);}
  if(owned)posix_spawnattr_destroy(&own);
- if(!code&&pid){@synchronized(diagnostic){NSMutableArray *pids=[([diagnostic[@"nonce"] isEqual:session[@"nonce"]]?(diagnostic[@"heldRA"]?:@[]):@[]) mutableCopy];[pids addObject:@(*pid)];updateDiagnostic(session,@{@"heldRA":pids,@"raConfigurationReady":@YES});}}
+ if(!code&&pid){
+  BOOL tracked=NO;@synchronized(diagnostic){
+   NSDictionary *candidate=IHVPNStartupDiagnosticForAttempt(diagnostic,session,@(*pid));
+   tracked=updateDiagnostic(session,@{@"heldRA":candidate[@"heldRA"],@"raConfigurationReady":@YES});
+  }
+  // 过期或无法记录的挂起子进程不能遗留；只结束本次刚派生的rtadvd。
+  if((!tracked||!IHNativeStartupAttemptMatches(session,IHNativeReadJSON(IHNativeStatePath)))&&IHNativeProcess(*pid,"rtadvd")){kill(*pid,SIGTERM);kill(*pid,SIGCONT);}
+ }
  return code;
 }}
 static Boolean addRule(void *user,uintptr_t position,xpc_object_t rule){
@@ -215,7 +244,7 @@ static Boolean addRule(void *user,uintptr_t position,xpc_object_t rule){
   if(block)updateDiagnostic(session,@{@"lastIPv6BlockInterface":internal,@"lastIPv6BlockTransport":IH16BridgeTransport(session,internal)?:@""});
   xpc_object_t copy=xpc_copy(rule);if(!block){xpc_object_t from=xpc_dictionary_create(NULL,NULL,0);xpc_dictionary_set_string(from,"address-number",prefix.UTF8String);xpc_dictionary_set_value(copy,"from",from);}
   Boolean accepted=originalAddRule(user,position,copy);if(!accepted)return accepted;
-  NSString *key=ruleKey(user,position);NSArray *staged;@synchronized(ruleSessions){staged=ruleSessions[key][@"compatBridges"]?:@[];}
+  NSString *key=ruleKey(user,position);NSArray *staged;@synchronized(ruleSessions){NSDictionary *entry=ruleSessions[key];staged=[entry[@"nonce"] isEqual:session[@"nonce"]]&&[entry[@"startupAttempt"] isEqual:session[@"startupAttempt"]]?(entry[@"compatBridges"]?:@[]):@[];}
   if(![staged containsObject:internal]){
    if((block&&!addCompatiblePass(user,position,session,internal,prefix))||!addCompatibleNAT66(user,position,session,prefix))return false;
    recordRule(session,user,position,@{@"nat66":@YES,@"prefixCompatibility":@YES,@"compatBridges":[staged arrayByAddingObject:internal]});
@@ -232,7 +261,7 @@ static Boolean addRule(void *user,uintptr_t position,xpc_object_t rule){
 static Boolean commitRules(void *user,uintptr_t transaction,uintptr_t flags,void *completion){
  Boolean accepted=originalCommit(user,transaction,flags,completion);
  @autoreleasepool{NSDictionary *session=IH16ActiveSession(),*entry;@synchronized(ruleSessions){NSString *key=ruleKey(user,transaction);entry=ruleSessions[key];[ruleSessions removeObjectForKey:key];}
-  if(accepted&&session&&[entry[@"nonce"] isEqual:session[@"nonce"]]){NSMutableDictionary *values=[NSMutableDictionary new];if([entry[@"nat44"] boolValue])values[@"nat44Committed"]=@YES;if([entry[@"nat66"] boolValue])values[@"nat66Committed"]=@YES;if([entry[@"prefixCompatibility"] boolValue])values[@"legacyPrefixCompatibility"]=@YES;updateDiagnostic(session,values);}
+  if(accepted&&session&&[entry[@"nonce"] isEqual:session[@"nonce"]]&&[entry[@"startupAttempt"] isEqual:session[@"startupAttempt"]]){NSMutableDictionary *values=[NSMutableDictionary new];if([entry[@"nat44"] boolValue])values[@"nat44Committed"]=@YES;if([entry[@"nat66"] boolValue])values[@"nat66Committed"]=@YES;if([entry[@"prefixCompatibility"] boolValue])values[@"legacyPrefixCompatibility"]=@YES;updateDiagnostic(session,values);}
  }return accepted;
 }
 __attribute__((constructor))static void install(void){@autoreleasepool{
